@@ -16,9 +16,12 @@ import { atomicWriteFileSync } from "./workspace";
 //                        城市/地区级字符串）、days（天数）。不带对话内容、
 //                        不带 intake 全文、不带人群/预算细节
 //       export           路书导出                props: format（docx/pdf/xlsx）
-//       reco_impression  产品推荐曝光            props: product_id、match_score
+//       reco_impression  产品推荐曝光（窗口 1 整包产品，纯语义）
+//                        props: product_id、match_score
 //       reco_dismissed   产品推荐被拒绝          props: product_id（用户明确拒绝
 //                        或冷淡回应后记录，本 trip 内不再推荐，spec §10.4b-3）
+//       booking_link_shown  booking 短链曝光（窗口 2，与产品推荐语义分离）
+//                        props: code（短码，取 affiliate_url 中 /r/ 后的段）
 //   - 关闭方式（任一即全局 no-op）：
 //       1) 环境变量 PILOT_TELEMETRY=off
 //       2) ~/.pilot/telemetry.json 的 enabled 置 false
@@ -36,6 +39,7 @@ export const TELEMETRY_EVENTS = [
   "export",
   "reco_impression",
   "reco_dismissed",
+  "booking_link_shown",
 ] as const;
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENTS)[number];
@@ -47,6 +51,7 @@ export const EVENT_PROPS: Record<TelemetryEventName, readonly string[]> = {
   export: ["format"],
   reco_impression: ["product_id", "match_score"],
   reco_dismissed: ["product_id"],
+  booking_link_shown: ["code"],
 };
 
 export const QUEUE_MAX = 1000;

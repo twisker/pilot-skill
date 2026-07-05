@@ -67,6 +67,14 @@ describe("track", () => {
     expect(evt?.props).toEqual({ product_id: "pd-xj001" });
   });
 
+  it("booking_link_shown 在白名单内，props 只留 code（不带 match_score）", () => {
+    expect(
+      track("booking_link_shown", { code: "hotel-abc1234567", match_score: 0.9 })
+    ).toBe(true);
+    const evt = readQueue().find((e) => e.event === "booking_link_shown");
+    expect(evt?.props).toEqual({ code: "hotel-abc1234567" });
+  });
+
   it("白名单外事件 no-op", () => {
     expect(track("page_view", {})).toBe(false);
     expect(readQueue()).toHaveLength(0);

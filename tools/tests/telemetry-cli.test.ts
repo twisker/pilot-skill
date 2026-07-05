@@ -45,6 +45,18 @@ describe("telemetry-cli track", () => {
     expect(evt?.props).toEqual({ product_id: "pd-xj001" });
   });
 
+  it("booking_link_shown 在白名单内，props 只留 code", async () => {
+    const result = await main([
+      "track",
+      "booking_link_shown",
+      "--props",
+      '{"code":"hotel-abc1234567","match_score":0.9}',
+    ]);
+    expect(result).toEqual({ tracked: true, event: "booking_link_shown" });
+    const evt = readQueue().find((e) => e.event === "booking_link_shown");
+    expect(evt?.props).toEqual({ code: "hotel-abc1234567" });
+  });
+
   it("--props 省略 → 空 props 入队", async () => {
     const result = await main(["track", "export", "--props", '{"format":"pdf"}']);
     expect(result).toEqual({ tracked: true, event: "export" });
