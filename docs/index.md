@@ -19,6 +19,7 @@ Repo home & install instructions: [github.com/twisker/pilot-skill](https://githu
 | [配置参考](zh/guide-config.md) | `config/pilot.json` 全字段说明（源路由 / 精选数量 / 地图等） |
 | [路书导出说明](zh/guide-export.md) | 四段结构、Excel 四 sheet、模板 sheet 用法 |
 | [常见问题 FAQ](zh/faq.md) | 抓取被拦 / 无 key 地图 / 如何更新 等 |
+| [隐私声明](zh/privacy.md) | 匿名统计收集什么/不收集什么/如何一键关闭（当前默认不上报） |
 
 ### 一分钟了解主链路
 
@@ -61,6 +62,7 @@ npx tsx ~/.pilot/app/tools/server/server.ts start --trip <trip-id>   # 手动启
 | [Configuration reference](en/guide-config.md) | Every field in `config/pilot.json` (source routing / curation count / map, etc.) |
 | [Itinerary export guide](en/guide-export.md) | The four-section structure, Excel's 4 sheets, and how to use the template sheets |
 | [FAQ](en/faq.md) | Scraping blocked / no map key / how to update, and more |
+| [Privacy statement](en/privacy.md) | What the anonymous statistics collect / never collect / one-switch opt-out (no uploading by default) |
 
 ### The main flow in one minute
 

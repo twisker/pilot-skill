@@ -1,5 +1,6 @@
 import path from "node:path";
 import { createTrip, currentTrip } from "./lib/workspace";
+import { track } from "./lib/telemetry";
 
 // ---------------------------------------------------------------------------
 // PILOT trip.ts —— trip 生命周期薄 CLI（workspace.ts 的命令行入口）
@@ -22,6 +23,8 @@ export function main(argv: string[]): unknown {
         throw new CliError(`非法 slug: "${arg}"（只允许小写字母/数字/连字符，且以字母或数字开头）`);
       }
       const tripPath = createTrip(arg);
+      // 匿名遥测：只带 slug（目的地粗粒度），不带对话内容（spec §10.4a）
+      track("trip_created", { destination: arg });
       return { trip_id: path.basename(tripPath), path: tripPath };
     }
     case "current":

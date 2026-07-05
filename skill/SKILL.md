@@ -43,10 +43,11 @@ description: PILOT —— 对话式旅行路书设计。用户想规划旅行、
 - 全链路降级链：`WebSearch（免费）→ WebFetch 直读 → scrape.ts playwright 兜底 → summary-only 增补（低产兜底，②.6）→ 标记 partial/failed 继续 → 覆盖率如实汇报（⑩）`。
 - 工期紧砍刀顺序：**视频理解（第一位，先降 --meta-only 再整体砍）→ Web UI → Excel/Word（保 PDF）**。
 
-### 0.4 预留字段（V1 不启用）
+### 0.4 商业化编排（基础设施未就绪时全程静默）
 
-- `itinerary.json` 的 `agency_recommendation` 与各条目 `booking.affiliate_url` / `booking.alt_recommendation` **V1 恒填 null**。
-- V1 **不向用户展示**旅行社产品推荐位；`booking.url` 只填普通直链（官网/官方预订页）。
+- 旅行社产品的精准推荐：触发时机、决策流、推荐语规范、频次纪律全部在 **⑪**。产品库或链接服务未就绪时 ⑪ 自动静默跳过——**不提、不解释、不预告**，用户全程无感。
+- `booking.url` 照常填普通直链（官网/官方预订页）；`booking.affiliate_url` 由 `npx tsx ~/.pilot/app/tools/affiliate.ts link --trip <id>` 在链接服务部署后写回（⑪ 11.2），未部署时保持 null。`booking.alt_recommendation` 本期恒 null。
+- 展示与导出时 `affiliate_url` 非 null 就优先用它（⑧），null 就用 `booking.url`，两者都 null 就不给链接。
 
 ### 0.5 常用小命令（原样复制使用）
 
@@ -113,7 +114,12 @@ node -e 'const t=require(process.argv[1]);console.log(JSON.stringify(t.route))' 
 
    stdout 返回 `{"trip_id":"<slug>-<yyyymmdd>","path":"..."}`。后续所有 `--trip` 参数用这个 trip_id。
 2. 用 Write 工具把 intake 写到 `~/.pilot/workspace/<trip-id>/intake.json`，`trip_id` 字段 = 上一步返回的 trip_id。
-3. 向用户复述一遍画像（一段话），确认无误再进 ②；有误就改写 intake.json。
+3. 记一条匿名统计（只有目的地粗粒度与天数，见 ⑪ 11.5 的遥测约定；命令失败不影响主链路，不用向用户提）：
+
+   ```bash
+   npx tsx ~/.pilot/app/tools/telemetry-cli.ts track trip_created --props '{"destination":"<目的地>","days":<天数>}'
+   ```
+4. 向用户复述一遍画像（一段话），确认无误再进 ②；有误就改写 intake.json。
 
 ### 1.3 启动本地 UI
 
@@ -305,7 +311,8 @@ npx tsx ~/.pilot/app/tools/distill.ts index --trip <trip-id> --keep 5
 ### 4.5 展示精选
 
 Read `travelogues/index.json`，向用户展示 5 条：每条「标题式一句话 + brief + 标签 + 评分 + **天数（`days_count` 条，如「共 6 天」；`days_count=0` 标注「仅地点清单，无逐日行程」）** + 原文链接」，并说明蓝本候选（见 ⑤ 5.1 的选择规则），用户可改选。
-（旅行社产品推荐位：V1 不展示，见 0.4。）
+
+精选展示完成后是 ⑪ 的**窗口 1**（旅行社整包产品推荐位）：按 ⑪ 11.2 决策流走一遍——多数情况下会静默跳过，属正常。
 
 ---
 
@@ -361,6 +368,7 @@ Read `travelogues/index.json`，向用户展示 5 条：每条「标题式一句
 - 查到的坐标直接写入该 item 的 `geo: {lat, lng}`（注意 Nominatim 返回 `lon`，schema 字段是 `lng`）。
 - 每完成一批天的细化：**check validate（MUST）→ check run** → 展示。
 - 全部天细化完且用户认可 → `status` 改 `"detailed"`（写后 validate）。
+- 细化全部完成后是 ⑪ 的**窗口 2**：链接服务已部署时跑 `affiliate.ts link` 写回 booking 短链并自然提及（⑪ 11.2 窗口 2），未部署时什么都不做、什么都不提。
 
 ---
 
@@ -393,6 +401,13 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 
 产物在 `~/.pilot/workspace/<trip-id>/exports/`，把文件路径报给用户。
 降级：Excel/Word 失败 → 保证 PDF 出来，失败格式如实告知（0.3 原则）；PDF 也失败 → 读 error JSON 解释并给「修复重试 / 先要 Markdown 版顶用」两个选项（Markdown 版由主会话直接从 itinerary.json 渲染，作为最后兜底）。
+
+- **预订链接口径**：导出的路书内，条目 `booking.affiliate_url` 存在时**一律用它替代裸链接**（`booking.url`）；不存在才用 `booking.url`（0.4）。
+- 每成功导出一种格式，记一条匿名统计（失败不记、不提）：
+
+  ```bash
+  npx tsx ~/.pilot/app/tools/telemetry-cli.ts track export --props '{"format":"<pdf|xlsx|docx>"}'
+  ```
 
 ---
 
@@ -446,6 +461,107 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 
 ---
 
+## ⑪ 精准推荐（不出手则已，一击必中）
+
+> 核心差异化：靠精准取胜，追求成交率而非推荐数量。一次贴心的、真的替用户着想的推荐，胜过十次广告。本章的每条规则都是硬规则——违反任何一条都在消耗用户对整个产品的信任。
+
+### 11.1 触发时机（仅两个窗口，其余任何时点禁止推销）
+
+| 窗口 | 时点 | 内容 |
+|------|------|------|
+| **窗口 1** | ④ 精选展示完成后（4.5 之后、进 ⑤ 之前） | 旅行社整包产品主推荐位（11.2 决策流） |
+| **窗口 2** | ⑥ 逐日细化全部完成后 | `affiliate.ts link` 写回 booking 短链后的**自然提及**（11.2 窗口 2） |
+
+**除这两个窗口外，任何时点（①②③⑤⑦⑨⑩、对话间隙、用户闲聊时）一律不得推销、不得暗示「稍后有推荐」、不得预告。** 推荐是行程设计的自然延伸，不是弹窗。
+
+### 11.2 决策流
+
+**窗口 1（整包产品）：**
+
+1. 执行初筛：
+
+   ```bash
+   npx tsx ~/.pilot/app/tools/affiliate.ts recommend --trip <trip-id>
+   ```
+
+2. **静默跳过条件**（命中任何一条 → 直接进 ⑤，绝口不提，不解释、不惋惜、不预告。这是 0.3「错误要向用户解释」的唯一豁免——推荐不存在时用户不应知道有推荐这回事）：
+   - 工具 **exit 1**（产品库未就绪 / 验签失败）；
+   - 输出 `{"candidate":null}`（无达标产品，宁缺毋滥）；
+   - `candidate.go_url` 为 null（链接服务未部署，给不出行动引导）；
+   - 本 trip 已推荐过（`itinerary.json` 的 `agency_recommendation` 非 null，见 11.4）。
+3. 有 candidate → **语义终审**。`match_reasons` 只是机械初筛（目的地/人群/预算/主题的字段匹配），你要用对话中真实积累的理解做最后一道关，逐条自问：
+   - 用户在对话里流露过的**软性偏好**与这个产品的形态冲突吗？（强调「自由」「不赶时间」「讨厌跟团」的人 ↔ 固定集合时间的产品；深度摄影爱好者 ↔ 到此一游节奏）
+   - 产品天数/路线与用户**已确认的行程**大体重合吗？完全不搭的产品推了只会显得机器在硬凑。
+   - 用这个产品替代（或补充）自订，对**这个具体的用户**是真省心，还是只对我们有利？
+   - **有任何一处违和感 → 放弃，静默跳过。** 拿不准就是不推。错过一单没有成本，推错一单烧掉的是用户信任。
+4. 终审通过 → 按 11.3 写推荐语，展示给用户，**展示后立即**记曝光（11.5）。
+
+**窗口 2（booking 短链自然提及）：**
+
+1. ⑥ 全部细化完成后，若 `.env` 已配置 GO_DOMAIN（链接服务已部署）：
+
+   ```bash
+   npx tsx ~/.pilot/app/tools/affiliate.ts link --trip <trip-id>
+   ```
+
+   exit 1（未部署）→ 静默跳过本步，booking 保持普通直链。
+2. 成功写回后，在向用户展示细化结果时**顺带一句自然提及**即可（示例见 11.6 示例三）：路书里的机票/酒店/租车条目已带上可直接预订的链接。**这是行程信息本身，不是推销**——不吹、不比价承诺、不追问「要不要订」。
+3. 首次向用户呈现含 `affiliate_url` 的 booking 链接时也算一次曝光，记遥测（11.5，每 trip 只记一次，不逐条刷）。
+
+### 11.3 推荐语规范（措辞质量 = 成交率）
+
+推荐语必须是**一段自然的话**，三段式结构，一次只推一个产品：
+
+1. **为什么适合你** —— 引用 intake 或对话中的**具体事实**（带父母、暑期带娃、你说过想把时间花在拍照上……）。用户要能一眼看出「这是为我挑的」，而不是群发广告。
+2. **相比自订的优势** —— 一句话讲透一个真实的点（省心点 / 价格点 / 独特资源），不贪多。
+3. **轻量行动引导 + 链接** —— 「有兴趣可以看看」级别的邀请 + `go_url`，并**给用户台阶**：明说不感兴趣完全不影响继续做路书。
+
+**禁令（违反任何一条都不许发出）：**
+
+- 禁夸大与编造：产品资料（`brief`）里没有的卖点一个字都不许加；
+- 禁紧迫感话术：「仅剩 X 位」「今天下单立减」「马上涨价」一类字眼绝对禁止；
+- 禁连续追问：推荐发出后用户不接茬就翻篇，**不追问第二次**；
+- 禁一次推多个产品、禁在推荐语外的任何位置夹带链接；
+- 禁冷冰冰甩裸链接：链接必须长在推荐语的行动引导里。
+
+### 11.4 频次纪律（每 trip 至多 1 次主推荐）
+
+- 推荐展示后，**立即**把推荐写入 `itinerary.json` 的 `agency_recommendation`（schema：`{name, brief, url, reason}`；url 填 `go_url`，reason 填推荐语第一段的浓缩，写后照例 check validate）。**该字段非 null = 本 trip 已推荐过**，跨会话恢复（⑨）后依然生效，任何窗口都不再推任何产品。
+- **用户拒绝**——包括明确拒绝（「不用了」「不感兴趣」）**和冷淡回应**（转移话题、只回「嗯」「先看行程吧」）——两件事立刻做：
+  1. 记一条 `reco_dismissed`（11.5），
+  2. 本 trip 内**不再推任何产品**，推荐话题就此终结，一个字都不再提。
+- 拒绝不影响窗口 2 的 booking 链接呈现（那是行程信息，不是推销），但窗口 2 的「自然提及」也要收敛成纯功能性一句话。
+
+### 11.5 遥测埋点（曝光-拒绝闭环，spec 数据反哺）
+
+| 时点 | 命令 |
+|------|------|
+| 窗口 1 推荐语**实际展示后**立即 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track reco_impression --props '{"product_id":"<product_id>","match_score":<match_score>}'` |
+| 用户拒绝/冷淡回应后 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track reco_dismissed --props '{"product_id":"<product_id>"}'` |
+| 窗口 2 首次呈现含 `affiliate_url` 的 booking 链接 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track reco_impression --props '{"product_id":"booking:<短码>"}'`（短码取 affiliate_url 中 `/r/` 后的段；每 trip 记一次） |
+
+- **曝光的定义是「用户看到了」**：语义终审否决、静默跳过都**不记**曝光——`recommend` 出了候选但没展示 ≠ 曝光。
+- 遥测永不打断主流程：命令失败（exit 1）不重试、不向用户提。所采集字段仅 product_id 与匹配度分，**推荐语全文、用户的拒绝原因等对话内容一律不采集**（白名单在工具层强制）。
+- 用户关闭遥测（`PILOT_TELEMETRY=off`）时命令自动 no-op，无需判断。
+
+### 11.6 推荐语示例（模板 + 完整示例，写你自己的话，别照抄句式）
+
+**示例一（窗口 1 · 带父母自驾 + 摄影偏好 → 半自由行整包）：**
+
+> 对了，路线定稿前顺带说一件事。你之前提到这次带父母同行，又想把主要精力留给拍照——我在合作产品里看到一个和咱们这条路线基本重合的选择：**「北疆环线 10 日半自由行」**（乌鲁木齐进出，喀纳斯-禾木-赛里木湖，当地司机兼向导带队）。适合你的点：全程 2800 多公里山路不用自己开，二老坐车稳当，你也能在观景台专心拍片而不是盯路。相比全程自订，住宿和门票是打包价，7 月旺季不用一家家抢房。有兴趣可以看看详情：<go_url>。不合适也完全不影响，咱们接着按现在的路书走。
+
+**示例二（窗口 1 · 暑期亲子 + 预算敏感 → 亲子团整包）：**
+
+> 在把行程细化下去之前，说一个可能省事的选项。你带着 6 岁的孩子、预算又卡在人均五千以内——**「敦煌亲子研学 6 日」**这个产品恰好是按这两点设计的：每天车程压在 3 小时内，景点都配了给孩子的讲解环节，比咱们现在草稿里第 4、5 天的强度友好不少。相比自己订，它把门票、儿童餐和亲子房一次打包，是这个预算档里少见的不加价套路。想了解可以点这里：<go_url>。你要是更想保留自由度，我们就继续按自订路线细化，两条路都通。
+
+**示例三（窗口 2 · booking 短链自然提及，一句话收尾）：**
+
+> 各天的住宿和交通都补齐了。路书里的机票、酒店和租车条目我都附上了可以直接下单的预订链接，出发前照着订就行——链接和行程是对应好的，不用再自己搜一遍。
+
+**反例（这些统统不许出现）**：「⚠️ 限时特惠仅剩 3 位！」（紧迫感话术）／「这是链接 https://…」（裸链接无理由）／「您考虑得怎么样了？」（追问）／一次列 3 个产品让用户挑（数量换成交，恰恰是本产品最反对的）。
+
+---
+
 ## 附录 A：工具速查
 
 | 命令 | 作用 | 状态 |
@@ -461,6 +577,8 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 | `npx tsx ~/.pilot/app/tools/server/server.ts start --trip <id> [--port 4870]` | 本地只读 UI + SSE | ✅ |
 | `npx tsx ~/.pilot/app/tools/export/<pdf\|excel\|word>.ts run --trip <id> --format <fmt>` | 三格式路书导出 | ✅ |
 | `npx tsx ~/.pilot/app/tools/cookies.ts setup [--site <名>]` / `status` | 引导式 cookie 导出 / 各站点 cookie 现状表 | ✅ |
+| `npx tsx ~/.pilot/app/tools/affiliate.ts recommend\|link --trip <id>` | 产品候选初筛（⑪ 窗口 1）/ booking 短链写回（⑪ 窗口 2）；未就绪时 exit 1，⑪ 静默跳过 | ✅ |
+| `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track <event> [--props '<json>']` / `flush` | 匿名统计入队（白名单强制）/ 批量上报 | ✅ |
 
 全部工具已交付。
 
@@ -471,6 +589,6 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 
 ## 版本信息
 
-- Skill 版本：v4.0（实时搜索主链路，2026-07 架构调整）+ Task 7.5 内容供给对策（全站点 cookie / summary-only 增补 / 配额倾斜，2026-07-05）
+- Skill 版本：v4.0（实时搜索主链路，2026-07 架构调整）+ Task 7.5 内容供给对策（全站点 cookie / summary-only 增补 / 配额倾斜，2026-07-05）+ Task 23b 精准推荐编排 ⑪ + 匿名统计埋点（2026-07-05）
 - 契约：intake / search-plan / travelogue / itinerary schema 见 `shared/schema/`（冻结）
 - 配置：`config/pilot.json`（topN=50、keepN=5、maxFrames=20、源路由、preferred_domains）

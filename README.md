@@ -28,6 +28,7 @@ Every day of the itinerary traces back to a specific day in a specific real trav
 - **Map companion**: a local read-only page (timeline / map / reference-travelogue card wall) that auto-refreshes in the browser (via SSE) whenever the itinerary file changes, using a Tianditu basemap
 - **Three-format itinerary book**: Excel (4 sheets, with cost formulas and an expense-log template) / PDF / Word, structured to match how experienced travelers actually use a paper itinerary book on the road
 - **Fully local**: all data is written to `~/.pilot/workspace/`, cookies stay on your machine only, zero cloud dependency
+- **Transparent anonymous statistics with a one-switch opt-out**: event counts and coarse destinations only — never conversation content or identity, and nothing is uploaded by default (`PILOT_TELEMETRY=off` disables it globally) — see the [privacy statement](docs/en/privacy.md)
 
 ## Requirements
 
@@ -135,6 +136,7 @@ Full walkthrough: [docs/en/tutorial-quickstart.md](docs/en/tutorial-quickstart.m
 | [docs/en/guide-config.md](docs/en/guide-config.md) | Full field reference for `config/pilot.json` |
 | [docs/en/guide-export.md](docs/en/guide-export.md) | The itinerary book's four-section structure and template sheets |
 | [docs/en/faq.md](docs/en/faq.md) | Frequently asked questions |
+| [docs/en/privacy.md](docs/en/privacy.md) | Privacy statement: what the anonymous statistics collect / never collect / how to opt out |
 
 中文文档在 [docs/zh/](docs/zh/)（与英文版内容一一对应，非摘要翻译）。
 

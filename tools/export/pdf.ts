@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import { buildManualData } from "./lib/render";
 import { renderManualHtml, escapeHtml } from "./lib/html";
 import { tripDir } from "../lib/workspace";
+import { track } from "../lib/telemetry";
 
 // ---------------------------------------------------------------------------
 // PILOT export/pdf.ts —— 穷游手册九章节 PDF 导出（三格式中优先级最高的保底格式）
@@ -76,7 +77,9 @@ export async function main(argv: string[]): Promise<unknown> {
   if (format !== "pdf") {
     throw new CliError(`不支持的 --format: ${format}（本工具仅支持 pdf，excel/word 见各自导出工具）`);
   }
-  return runPdf(flags.trip);
+  const result = await runPdf(flags.trip);
+  track("export", { format: "pdf" });
+  return result;
 }
 
 if (require.main === module) {

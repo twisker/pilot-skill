@@ -89,7 +89,7 @@
                       "format": "uri"
                     },
                     "affiliate_url": {
-                      "type": "null",
+                      "type": ["string", "null"],
                       "description": "V1 恒 null（预留字段）"
                     },
                     "alt_recommendation": {

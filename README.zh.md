@@ -28,6 +28,7 @@ PILOT 不是「让 AI 凭空编一份行程」。它的主链路是：
 - **地图伴侣**：本地只读网页（时间线 / 地图 / 参考游记卡片墙），行程文件一变浏览器自动刷新（SSE），天地图底图
 - **三格式路书**：Excel（4 sheet，含费用公式与消费流水模板）/ PDF / Word，结构对齐资深旅行者的实战路书习惯
 - **全程本地**：数据全部落盘 `~/.pilot/workspace/`，cookie 只存本机，零云端依赖
+- **透明的匿名统计，可一键关闭**：只记事件计数与目的地粗粒度，绝不采集对话内容与身份信息，且当前默认不上报（`PILOT_TELEMETRY=off` 即全局关闭）——详见[隐私声明](docs/zh/privacy.md)
 
 ## 系统要求
 
@@ -125,6 +126,7 @@ PILOT：（逐日细化 → 坐标查证 → 最终冲突检查 → 导出）
 | [docs/zh/guide-config.md](docs/zh/guide-config.md) | `config/pilot.json` 全字段参考 |
 | [docs/zh/guide-export.md](docs/zh/guide-export.md) | 路书四段结构与模板 sheet 用法 |
 | [docs/zh/faq.md](docs/zh/faq.md) | 常见问题 |
+| [docs/zh/privacy.md](docs/zh/privacy.md) | 隐私声明：匿名统计收集什么/不收集什么/如何关闭 |
 
 英文版文档在 [docs/en/](docs/en/)（内容与中文版一一对应，非摘要翻译）。
 

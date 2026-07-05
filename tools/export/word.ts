@@ -19,6 +19,7 @@ import {
 } from "docx";
 import { buildManualData, type ManualData } from "./lib/render";
 import { tripDir } from "../lib/workspace";
+import { track } from "../lib/telemetry";
 
 // ---------------------------------------------------------------------------
 // PILOT export/word.ts —— 穷游手册 Word (.docx) 导出
@@ -549,7 +550,9 @@ export async function main(argv: string[]): Promise<unknown> {
   if (format !== "docx") {
     throw new CliError(`不支持的 --format: ${format}（本工具仅支持 docx，pdf/excel 见各自导出工具）`);
   }
-  return runWord(flags.trip);
+  const result = await runWord(flags.trip);
+  track("export", { format: "docx" });
+  return result;
 }
 
 if (require.main === module) {

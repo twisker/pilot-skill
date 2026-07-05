@@ -48,5 +48,8 @@
   },
   "map": {
     "tile_url": null
+  },
+  "telemetry": {
+    "endpoint": null
   }
 }

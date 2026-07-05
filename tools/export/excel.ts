@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import ExcelJS from "exceljs";
 import { buildManualData, type ManualData, type ItineraryItem } from "./lib/render";
 import { tripDir } from "../lib/workspace";
+import { track } from "../lib/telemetry";
 
 // ---------------------------------------------------------------------------
 // PILOT export/excel.ts —— 穷游手册 Excel 导出（4 sheet，对齐真实自驾出行记账格式）
@@ -406,7 +407,9 @@ export async function main(argv: string[]): Promise<unknown> {
   if (format !== "xlsx") {
     throw new CliError(`不支持的 --format: ${format}（本工具仅支持 xlsx，pdf/word 见各自导出工具）`);
   }
-  return runExcel(flags.trip);
+  const result = await runExcel(flags.trip);
+  track("export", { format: "xlsx" });
+  return result;
 }
 
 if (require.main === module) {

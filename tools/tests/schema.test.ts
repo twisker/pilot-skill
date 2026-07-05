@@ -251,3 +251,38 @@ describe("search-plan.schema.json", () => {
     );
   });
 });
+
+describe("products.schema.json", () => {
+  let validate: ValidateFunction;
+  beforeAll(() => {
+    validate = compile("products.schema.json");
+  });
+
+  it("接受合法 products fixture（tests/fixtures/products.sample.json）", () => {
+    const sample = JSON.parse(
+      readFileSync(path.resolve(__dirname, "fixtures/products.sample.json"), "utf-8"),
+    );
+    expect(validate(sample)).toBe(true);
+  });
+
+  it("拒绝缺少 code 的产品条目", () => {
+    const invalid = {
+      version: 1,
+      generated_at: "2026-07-05T00:00:00.000Z",
+      products: [
+        {
+          product_id: "pd-x",
+          title: "x",
+          brief: "x",
+          // code 缺失
+          destinations: ["新疆"],
+          themes: [],
+          party_fit: ["family"],
+          budget_band: "mid",
+        },
+      ],
+    };
+    expect(validate(invalid)).toBe(false);
+    expect(validate.errors?.some((e) => e.params?.missingProperty === "code")).toBe(true);
+  });
+});

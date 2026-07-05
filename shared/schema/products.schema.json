@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pilot.local/schema/products",
+  "title": "Products",
+  "description": "旅行产品库（预留能力，V1 不启用）。分发到 ~/.pilot/products/products.json，附带 detached Ed25519 签名文件 products.json.sig，客户端验签通过后方可使用。产品条目只含不透明短码（code），不含任何第三方跟踪参数。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "generated_at", "products"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "generated_at": {
+      "type": "string",
+      "description": "ISO8601 生成时间"
+    },
+    "products": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product_id",
+          "title",
+          "brief",
+          "code",
+          "destinations",
+          "themes",
+          "party_fit",
+          "budget_band"
+        ],
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "pattern": "^pd-[a-z0-9][a-z0-9-]*$"
+          },
+          "title": { "type": "string", "minLength": 1 },
+          "brief": {
+            "type": "string",
+            "minLength": 1,
+            "description": "一句话产品简介（推荐语由 Skill 语义层生成，本字段只是素材）"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "maxLength": 64,
+            "description": "不透明短码；用户可见链接统一为 https://<GO_DOMAIN>/r/<code>"
+          },
+          "destinations": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 },
+            "description": "适用目的地（城市/地区级）"
+          },
+          "themes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "主题标签（自驾/亲子/摄影/徒步...），与 intake.preferences 对齐"
+          },
+          "party_fit": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["family", "seniors", "couple", "solo", "friends"]
+            },
+            "description": "适配人群"
+          },
+          "budget_band": {
+            "type": "string",
+            "enum": ["low", "mid", "high"],
+            "description": "价位档：low <500 / mid 500-1500 / high >1500（人均每天，CNY）"
+          },
+          "price_cny": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "description": "参考价（人均，CNY）"
+          },
+          "duration_days": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          }
+        }
+      }
+    }
+  }
+}
