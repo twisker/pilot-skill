@@ -4,6 +4,8 @@
 
 # PILOT — Conversational Travel Itinerary Design (Claude Code Skill)
 
+> Built by **Lutu AI** (路途智能).
+
 > **PILOT** is a Claude Code Skill that designs travel itineraries through conversation: it searches real travelogues across the web in real time, structures and curates the best ones, drafts a day-by-day itinerary you can edit by talking, checks it against deterministic conflict rules, and exports a print-ready itinerary book in Excel / PDF / Word — with a live read-only map view in your browser. Chinese-source-first (V1) since its search sources are Chinese travel platforms, but the Skill conversation itself works in any language your Claude Code session uses. Runs entirely on your own machine.
 
 Type one line into Claude Code, and PILOT turns a trip from "an idea" into "an itinerary book you can actually take on the road."

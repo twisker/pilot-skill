@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/twisker/pilot-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/twisker/pilot-skill/actions/workflows/ci.yml)
 
-# PILOT —— 对话式旅行路书设计（Claude Code Skill）
+# PILOT（排路客）—— 对话式旅行路书设计（Claude Code Skill）
+
+> 品牌：路途智能（Lutu AI）。
 
 > **PILOT** is a Claude Code Skill that designs travel itineraries through conversation: it searches real travelogues across the Chinese web in real time, structures and curates the best ones, drafts a day-by-day itinerary you can edit by talking, checks it against deterministic conflict rules, and exports a print-ready itinerary book in Excel / PDF / Word — with a live read-only map view in your browser. Chinese-first (V1), runs entirely on your own machine.
 

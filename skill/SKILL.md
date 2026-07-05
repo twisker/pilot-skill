@@ -1,9 +1,11 @@
 ---
 name: pilot
-description: PILOT —— 对话式旅行路书设计。用户想规划旅行、生成路书、设计行程、自驾游规划时使用。触发词：旅行、路书、行程、自驾、trip、itinerary、travel plan。
+description: PILOT（排路客）—— 对话式旅行路书设计。用户想规划旅行、生成路书、设计行程、自驾游规划时使用。触发词：旅行、路书、行程、自驾、trip、itinerary、travel plan。
 ---
 
-# PILOT v4 —— 实时搜索 · 对话式旅行路书
+# PILOT（排路客）v4 —— 实时搜索 · 对话式旅行路书
+
+> PILOT（排路客），路途智能（Lutu AI）出品。
 
 > 主链路：对话收集需求 → 实时搜索全网游记 → 结构化整理 → 精选蓝本 → 生成行程 → 对话编辑 → 逐日细化 → 冲突检查 → 三格式导出。
 > 本文件是产品本身；`tools/` 下的 CLI 只是它的手脚。所有产物落盘 workspace，**文件即 API**。
