@@ -7,36 +7,70 @@
       "title": "北疆环线 10 日自驾深度游（虚构测试产品）",
       "brief": "伊犁-喀纳斯环线，含全程车辆保障与牧区特色住宿，适合带老人孩子的家庭自驾",
       "code": "pd-xj-selfdrive-10d",
-      "destinations": ["新疆", "伊犁", "喀纳斯", "乌鲁木齐"],
-      "themes": ["自驾", "亲子", "摄影"],
-      "party_fit": ["family", "seniors"],
+      "destinations": [
+        "新疆",
+        "伊犁",
+        "喀纳斯",
+        "乌鲁木齐"
+      ],
+      "themes": [
+        "自驾",
+        "亲子",
+        "摄影"
+      ],
+      "party_fit": [
+        "family",
+        "seniors"
+      ],
       "budget_band": "mid",
       "price_cny": 8800,
-      "duration_days": 10
+      "duration_days": 10,
+      "category": "package"
     },
     {
       "product_id": "pd-xj-hiking-7d",
       "title": "南疆帕米尔徒步 7 日（虚构测试产品）",
       "brief": "喀什出发帕米尔高原轻徒步，专业领队，适合体能好的年轻小队",
       "code": "pd-xj-hiking-7d",
-      "destinations": ["新疆", "喀什", "帕米尔"],
-      "themes": ["徒步", "摄影"],
-      "party_fit": ["friends", "solo"],
+      "destinations": [
+        "新疆",
+        "喀什",
+        "帕米尔"
+      ],
+      "themes": [
+        "徒步",
+        "摄影"
+      ],
+      "party_fit": [
+        "friends",
+        "solo"
+      ],
       "budget_band": "high",
       "price_cny": 12800,
-      "duration_days": 7
+      "duration_days": 7,
+      "category": "package"
     },
     {
       "product_id": "pd-yn-family-6d",
       "title": "云南亲子 6 日休闲游（虚构测试产品）",
       "brief": "昆明-大理-丽江慢节奏亲子线，全程四星住宿",
       "code": "pd-yn-family-6d",
-      "destinations": ["云南", "大理", "丽江"],
-      "themes": ["亲子", "休闲"],
-      "party_fit": ["family"],
+      "destinations": [
+        "云南",
+        "大理",
+        "丽江"
+      ],
+      "themes": [
+        "亲子",
+        "休闲"
+      ],
+      "party_fit": [
+        "family"
+      ],
       "budget_band": "mid",
       "price_cny": 5600,
-      "duration_days": 6
+      "duration_days": 6,
+      "category": "package"
     }
   ]
 }

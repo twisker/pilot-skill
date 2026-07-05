@@ -117,9 +117,9 @@ function setupTrip(): void {
   writeJson(TRIP_ID, "itinerary.json", sampleItinerary());
 }
 
-function installProducts(tamper = false): string {
+function installProducts(tamper = false, payloadOverride?: string): string {
   const { privateKeyPem, publicKeyRawB64 } = generateSigningKeypair();
-  const payload = readFileSync(FIXTURE_PRODUCTS, "utf-8");
+  const payload = payloadOverride ?? readFileSync(FIXTURE_PRODUCTS, "utf-8");
   const sig = signPayload(payload, privateKeyPem);
   const dir = path.join(testPilotHome, "products");
   mkdirSync(dir, { recursive: true });
@@ -230,6 +230,14 @@ describe("signing 往返", () => {
 // CLI 场景
 // ---------------------------------------------------------------------------
 
+// 公开发行仓不包含 config/affiliate-map.zh.json（export-release.sh 白名单只导
+// config/pilot.json，link 子命令在发行环境按设计 exit 1 静默降级）。依赖该
+// 路由表的 link 用例在发行仓 skip——这是发行形态的既定取舍，不是漏测；
+// 完整覆盖由私仓（路由表在库）承担。
+const AFFILIATE_MAP_AVAILABLE = existsSync(
+  path.resolve(__dirname, "../../config/affiliate-map.zh.json")
+);
+
 describe("affiliate link", () => {
   it("GO_DOMAIN 未配置 → CliError（链接服务未部署）", () => {
     setupTrip();
@@ -238,7 +246,14 @@ describe("affiliate link", () => {
     expect(resolveGoDomain("zh", {} as NodeJS.ProcessEnv, testPilotHome)).toBeNull();
   });
 
-  it("booking 条目生成 go 短链写回 affiliate_url，无 booking 条目不动", () => {
+  it("品类路由表缺失（发行仓形态）→ CliError 拒绝而非编造短链", () => {
+    setupTrip();
+    process.env.GO_DOMAIN = "go-cn.example.cn";
+    if (AFFILIATE_MAP_AVAILABLE) return; // 私仓有路由表，该形态不适用
+    expect(() => main(["link", "--trip", TRIP_ID])).toThrow(/品类路由表/);
+  });
+
+  it.skipIf(!AFFILIATE_MAP_AVAILABLE)("booking 条目生成 go 短链写回 affiliate_url，无 booking 条目不动", () => {
     setupTrip();
     process.env.GO_DOMAIN = "go-cn.example.cn";
     const result = main(["link", "--trip", TRIP_ID]) as {
@@ -260,7 +275,68 @@ describe("affiliate link", () => {
     expect(JSON.stringify(itinerary)).not.toMatch(/aid=|allianceid=|affiliate_id=/);
   });
 
-  it("导出 exports/link-manifest.json 供 merge-link-config.ts 消费（短码对接断链修复）", () => {
+  it.skipIf(!AFFILIATE_MAP_AVAILABLE)("alt_recommendation（affiliate_url 为 null）→ 生成 alt- 前缀短码写回并进 manifest", () => {
+    setupTrip();
+    const itinerary = sampleItinerary();
+    (itinerary.days[0].items[1].booking as Record<string, unknown>).alt_recommendation = {
+      name: "水磨沟温泉民宿",
+      reason: "市区酒店旺季价格翻倍，你们预算敏感且带老人，这家更安静实惠",
+      url: "https://example.com/minsu",
+      affiliate_url: null,
+    };
+    writeJson(TRIP_ID, "itinerary.json", itinerary);
+    process.env.GO_DOMAIN = "go-cn.example.cn";
+
+    const result = main(["link", "--trip", TRIP_ID]) as {
+      updated: number;
+      links: { code: string; url: string; name: string }[];
+    };
+    // 2 条 booking + 1 条 alt = 3
+    expect(result.updated).toBe(3);
+    const altLink = result.links.find((l) => l.code.startsWith("alt-ht-"))!;
+    expect(altLink).toBeDefined();
+    expect(altLink.code).toMatch(/^alt-ht-[0-9a-f]{10}$/);
+
+    const saved = readJson<ReturnType<typeof sampleItinerary>>(TRIP_ID, "itinerary.json");
+    const alt = (saved.days[0].items[1].booking as unknown as {
+      alt_recommendation: { affiliate_url: string | null; url: string };
+    }).alt_recommendation;
+    expect(alt.affiliate_url).toBe(
+      `https://go-cn.example.cn/r/${altLink.code}?d=${encodeURIComponent("新疆")}&dt=2026-07-20`
+    );
+    expect(alt.url).toBe("https://example.com/minsu"); // 直链原样保留
+
+    const manifest = readJson<{ code: string; name: string; type: string }[]>(
+      TRIP_ID,
+      "exports/link-manifest.json"
+    );
+    const altEntry = manifest.find((m) => m.code === altLink.code)!;
+    expect(altEntry).toMatchObject({ type: "hotel", name: "水磨沟温泉民宿" });
+  });
+
+  it.skipIf(!AFFILIATE_MAP_AVAILABLE)("alt_recommendation.affiliate_url 已是产品 go 短链 → 不覆盖（保留 product_id 归因）", () => {
+    setupTrip();
+    const itinerary = sampleItinerary();
+    const existing = "https://go-cn.example.cn/r/pd-xj-selfdrive-10d?d=%E6%96%B0%E7%96%86&dt=2026-07-20";
+    (itinerary.days[0].items[1].booking as Record<string, unknown>).alt_recommendation = {
+      name: "北疆环线整包替代",
+      reason: "测试已填短链不被覆盖",
+      url: null,
+      affiliate_url: existing,
+    };
+    writeJson(TRIP_ID, "itinerary.json", itinerary);
+    process.env.GO_DOMAIN = "go-cn.example.cn";
+
+    const result = main(["link", "--trip", TRIP_ID]) as { updated: number };
+    expect(result.updated).toBe(2); // 只有两条计划内 booking，alt 不重复生成
+    const saved = readJson<ReturnType<typeof sampleItinerary>>(TRIP_ID, "itinerary.json");
+    const alt = (saved.days[0].items[1].booking as unknown as {
+      alt_recommendation: { affiliate_url: string };
+    }).alt_recommendation;
+    expect(alt.affiliate_url).toBe(existing);
+  });
+
+  it.skipIf(!AFFILIATE_MAP_AVAILABLE)("导出 exports/link-manifest.json 供 merge-link-config.ts 消费（短码对接断链修复）", () => {
     setupTrip();
     process.env.GO_DOMAIN = "go-cn.example.cn";
     const result = main(["link", "--trip", TRIP_ID]) as { links: { code: string }[] };
@@ -336,6 +412,47 @@ describe("affiliate recommend", () => {
     const result = main(["recommend", "--trip", TRIP_ID]) as { candidate: unknown };
     expect(result.candidate).toBeNull();
     expect(readQueue().filter((e) => e.event === "reco_impression")).toHaveLength(0);
+  });
+
+  it("--category 过滤：item 级取单项品类，缺 category 的旧数据视同 package", () => {
+    setupTrip();
+    const fixture = JSON.parse(readFileSync(FIXTURE_PRODUCTS, "utf-8")) as {
+      products: Record<string, unknown>[];
+    };
+    // 追加一条 restaurant 单项产品（目的地/人群/预算/偏好与 intake 全中）
+    fixture.products.push({
+      product_id: "pd-xj-restaurant-fenzheng",
+      title: "乌鲁木齐粉蒸牛肉老店代订（虚构测试产品）",
+      brief: "带老人小孩不用排队的本地口碑餐馆，提前订位",
+      code: "pd-xj-restaurant-fenzheng",
+      destinations: ["新疆", "乌鲁木齐"],
+      themes: ["自驾", "亲子", "摄影"],
+      party_fit: ["family", "seniors"],
+      budget_band: "mid",
+      category: "restaurant",
+    });
+    installProducts(false, JSON.stringify(fixture, null, 2));
+
+    // --category restaurant → 只剩单项产品参与初筛
+    const item = main(["recommend", "--trip", TRIP_ID, "--category", "restaurant"]) as {
+      candidate: { product: Product } | null;
+    };
+    expect(item.candidate?.product.product_id).toBe("pd-xj-restaurant-fenzheng");
+
+    // --category package → 旧数据（无 category 字段）视同 package，餐馆产品出局
+    const pkg = main(["recommend", "--trip", TRIP_ID, "--category", "package"]) as {
+      candidate: { product: Product } | null;
+    };
+    expect(pkg.candidate?.product.product_id).toBe("pd-xj-selfdrive-10d");
+
+    // 无匹配品类 → 宁缺毋滥 null
+    const flight = main(["recommend", "--trip", TRIP_ID, "--category", "flight"]) as {
+      candidate: unknown;
+    };
+    expect(flight.candidate).toBeNull();
+
+    // 非法品类 → CliError
+    expect(() => main(["recommend", "--trip", TRIP_ID, "--category", "cruise"])).toThrow(CliError);
   });
 
   it("验签失败（payload 被篡改）→ CliError 拒用", () => {

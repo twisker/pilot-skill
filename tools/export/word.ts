@@ -370,6 +370,15 @@ function buildDailyDetailsChildren(data: ManualData): (Paragraph | Table)[] {
       if (item.bookingUrl) {
         children.push(linkOrText(`预订：${item.bookingName ?? item.name} → ${item.bookingUrl}`, item.bookingUrl));
       }
+      // item 级额外推荐（booking.alt_recommendation）：逐日明细里加一行「替代推荐」
+      if (item.alt) {
+        children.push(
+          linkOrText(
+            `替代推荐：${item.alt.name}（${item.alt.reason}）${item.alt.url ? ` → ${item.alt.url}` : ""}`,
+            item.alt.url
+          )
+        );
+      }
     }
   }
   return children;

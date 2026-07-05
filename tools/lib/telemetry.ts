@@ -16,10 +16,12 @@ import { atomicWriteFileSync } from "./workspace";
 //                        城市/地区级字符串）、days（天数）。不带对话内容、
 //                        不带 intake 全文、不带人群/预算细节
 //       export           路书导出                props: format（docx/pdf/xlsx）
-//       reco_impression  产品推荐曝光（窗口 1 整包产品，纯语义）
-//                        props: product_id、match_score
-//       reco_dismissed   产品推荐被拒绝          props: product_id（用户明确拒绝
-//                        或冷淡回应后记录，本 trip 内不再推荐，spec §10.4b-3）
+//       reco_impression  产品推荐曝光            props: product_id、match_score、
+//                        scope（"trip"=窗口 1 整包 / "item"=⑥ item 级额外推荐，
+//                        可选）、item_ref（item 级时为 "<day>:<item name>"，可选）
+//       reco_dismissed   产品推荐被拒绝          props: product_id、scope、item_ref
+//                        （同上两可选字段；用户明确拒绝或冷淡回应后记录，
+//                        对应层级内不再推荐，spec §10.4b-3 两级频次纪律）
 //       booking_link_shown  booking 短链曝光（窗口 2，与产品推荐语义分离）
 //                        props: code（短码，取 affiliate_url 中 /r/ 后的段）
 //   - 关闭方式（任一即全局 no-op）：
@@ -49,8 +51,8 @@ export const EVENT_PROPS: Record<TelemetryEventName, readonly string[]> = {
   install: [],
   trip_created: ["destination", "days"],
   export: ["format"],
-  reco_impression: ["product_id", "match_score"],
-  reco_dismissed: ["product_id"],
+  reco_impression: ["product_id", "match_score", "scope", "item_ref"],
+  reco_dismissed: ["product_id", "scope", "item_ref"],
   booking_link_shown: ["code"],
 };
 

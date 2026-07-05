@@ -61,10 +61,40 @@ describe("track", () => {
     expect(evt?.props).toEqual({ destination: "新疆", days: 10 });
   });
 
-  it("reco_dismissed 在白名单内，props 只留 product_id", () => {
-    expect(track("reco_dismissed", { product_id: "pd-xj001", reason: "太贵" })).toBe(true);
+  it("reco_dismissed 在白名单内，props 留 product_id/scope/item_ref，拒绝原因剥离", () => {
+    expect(
+      track("reco_dismissed", {
+        product_id: "pd-xj001",
+        scope: "item",
+        item_ref: "2:羊肉泡馍老店",
+        reason: "太贵",
+      })
+    ).toBe(true);
     const evt = readQueue().find((e) => e.event === "reco_dismissed");
-    expect(evt?.props).toEqual({ product_id: "pd-xj001" });
+    expect(evt?.props).toEqual({
+      product_id: "pd-xj001",
+      scope: "item",
+      item_ref: "2:羊肉泡馍老店",
+    });
+  });
+
+  it("reco_impression 可选 scope/item_ref 通过白名单（trip 级可不带）", () => {
+    expect(
+      track("reco_impression", {
+        product_id: "pd-xj001",
+        match_score: 0.85,
+        scope: "item",
+        item_ref: "2:羊肉泡馍老店",
+        conversation: "推荐语全文不许进来",
+      })
+    ).toBe(true);
+    const evt = readQueue().find((e) => e.event === "reco_impression");
+    expect(evt?.props).toEqual({
+      product_id: "pd-xj001",
+      match_score: 0.85,
+      scope: "item",
+      item_ref: "2:羊肉泡馍老店",
+    });
   });
 
   it("booking_link_shown 在白名单内，props 只留 code（不带 match_score）", () => {

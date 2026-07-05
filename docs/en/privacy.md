@@ -18,7 +18,7 @@ If a future release enables reporting, this page will be updated in the same rel
 | Event counts (6-event whitelist) | `install` / `trip_created` / `export` (itinerary book exported) / `reco_impression` (a recommendation was shown) / `reco_dismissed` (a recommendation was declined) / `booking_link_shown` (a booking link was presented; short code only) |
 | Coarse destination | `trip_created` carries the destination string (city/region level, e.g. "Xinjiang") and the trip's day count — nothing else |
 | Export format | `export` carries the format name (pdf/xlsx/docx) |
-| Product id and match score | `reco_impression` carries `product_id` and a match score; `reco_dismissed` carries `product_id` only |
+| Product id and match score | `reco_impression` carries `product_id` and a match score; `reco_dismissed` carries `product_id` only. Both may additionally carry `scope` (`trip` = whole-trip recommendation / `item` = single-item recommendation) and `item_ref` (an itinerary-item locator of the form "day:item name" — nothing more, never conversation content) |
 
 The whitelist is enforced in code (`tools/lib/telemetry.ts`): events and fields outside it are **silently dropped**, and every string is truncated to 200 characters — structurally ruling out conversation text or other large blobs. The server side (once enabled) enforces the same whitelist as a second filter.
 

@@ -249,6 +249,25 @@ describe("runWord", () => {
     expect(trCount).toBeGreaterThanOrEqual(60);
   });
 
+  it.skipIf(process.platform === "win32")(
+    "alt_recommendation 非 null → 逐日明细含「替代推荐：<name>（<reason>）」行",
+    async () => {
+      const itinerary = makeItinerary();
+      itinerary.days[0].items[3].booking!.alt_recommendation = {
+        name: "粉蒸牛肉馆",
+        reason: "泡馍名气大但排队久，带老人小孩更适合粉蒸牛肉",
+        url: "https://example.com/fenzheng",
+        affiliate_url: null,
+      };
+      setupFixtureTrip({}, { days: itinerary.days });
+      const result = await runWord(tripId);
+
+      const xml = extractZipEntry(result.path, "word/document.xml");
+      expect(xml).toContain("替代推荐：粉蒸牛肉馆（泡馍名气大但排队久，带老人小孩更适合粉蒸牛肉）");
+      expect(xml).toContain("https://example.com/fenzheng");
+    }
+  );
+
   it("行程状态为 draft 时报错透传（由 buildManualData 抛出）", async () => {
     setupFixtureTrip({}, { status: "draft" });
     await expect(runWord(tripId)).rejects.toThrow();

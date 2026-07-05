@@ -247,6 +247,16 @@ function renderDailyDetailsSection(data: ManualData): string {
             }
           }
           const geo = item.geoLabel ? `<div class="muted">坐标：${escapeHtml(item.geoLabel)}</div>` : "";
+          // item 级额外推荐（booking.alt_recommendation）：紧跟条目行加一行「替代推荐」
+          let altRow = "";
+          if (item.alt) {
+            const altUrl = safeUrl(item.alt.url);
+            const altLink = altUrl ? ` <a href="${escapeHtml(altUrl)}">${escapeHtml(altUrl)}</a>` : "";
+            altRow = `
+          <tr class="alt-reco">
+            <td colspan="5" class="muted">替代推荐：${escapeHtml(item.alt.name)}（${escapeHtml(item.alt.reason)}）${altLink}</td>
+          </tr>`;
+          }
           return `
           <tr>
             <td class="nowrap">${escapeHtml(item.time)}</td>
@@ -254,7 +264,7 @@ function renderDailyDetailsSection(data: ManualData): string {
             <td>${escapeHtml(item.name)}<div class="muted">${escapeHtml(item.note)}</div>${geo}</td>
             <td class="nowrap">${escapeHtml(item.costLabel)}</td>
             <td>${booking}</td>
-          </tr>`;
+          </tr>${altRow}`;
         })
         .join("");
       return `

@@ -26,12 +26,19 @@ export class RenderError extends Error {}
 // 输入数据类型（对应 shared/schema/itinerary.schema.json / intake.schema.json）
 // ---------------------------------------------------------------------------
 
+export interface AltRecommendation {
+  name: string;
+  reason: string;
+  url: string | null;
+  affiliate_url: string | null;
+}
+
 export interface ItineraryBooking {
   type: string;
   name: string;
   url: string | null;
-  affiliate_url: null;
-  alt_recommendation: null;
+  affiliate_url: string | null;
+  alt_recommendation: AltRecommendation | null;
 }
 
 export interface ItineraryItem {
@@ -116,6 +123,8 @@ export interface DailyDetailItem {
   costLabel: string;
   bookingName: string | null;
   bookingUrl: string | null;
+  /** item 级额外推荐（booking.alt_recommendation 非 null 时呈现，链接口径 affiliate_url 优先） */
+  alt: { name: string; reason: string; url: string | null } | null;
 }
 
 export interface DailyDetailDay {
@@ -317,7 +326,18 @@ function buildDailyDetails(itinerary: Itinerary): DailyDetailDay[] {
       cost: item.cost_cny,
       costLabel: costLabel(item.cost_cny),
       bookingName: item.booking?.name ?? null,
-      bookingUrl: item.booking?.url ?? null,
+      // SKILL ⑧ 预订链接口径：affiliate_url 存在时一律用它替代裸链接
+      bookingUrl: item.booking?.affiliate_url ?? item.booking?.url ?? null,
+      alt: item.booking?.alt_recommendation
+        ? {
+            name: item.booking.alt_recommendation.name,
+            reason: item.booking.alt_recommendation.reason,
+            url:
+              item.booking.alt_recommendation.affiliate_url ??
+              item.booking.alt_recommendation.url ??
+              null,
+          }
+        : null,
     })),
   }));
 }
@@ -333,7 +353,7 @@ function buildHotels(itinerary: Itinerary): HotelsData {
         name: item.name,
         note: item.note,
         cost: item.cost_cny,
-        bookingUrl: item.booking?.url ?? null,
+        bookingUrl: item.booking?.affiliate_url ?? item.booking?.url ?? null,
       });
       if (item.cost_cny !== null) subtotal += item.cost_cny;
     }

@@ -93,8 +93,16 @@
                       "description": "V1 恒 null（预留字段）"
                     },
                     "alt_recommendation": {
-                      "type": "null",
-                      "description": "V1 恒 null（预留字段）"
+                      "type": ["object", "null"],
+                      "additionalProperties": false,
+                      "required": ["name", "reason", "url", "affiliate_url"],
+                      "properties": {
+                        "name": { "type": "string", "minLength": 1 },
+                        "reason": { "type": "string", "minLength": 1 },
+                        "url": { "type": ["string", "null"], "format": "uri" },
+                        "affiliate_url": { "type": ["string", "null"] }
+                      },
+                      "description": "item 级「额外推荐」：计划外替代/补充产品（每个事项至多 1 次，spec §10.4b 频次纪律两级；2026-07-05 产品负责人批准解冻）。无额外推荐时为 null。reason 必须引用该事项的具体痛点（如排队/人群/预算）；url 为普通直链或 null；affiliate_url 由 affiliate.ts link 写回 go 短链（alt- 前缀短码），未部署时保持 null"
                     }
                   }
                 }

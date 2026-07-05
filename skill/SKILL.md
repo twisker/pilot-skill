@@ -24,9 +24,10 @@ description: PILOT —— 对话式旅行路书设计。用户想规划旅行、
   raw/               # ② 抓取原文：serp-*.json、<sha1>.html/.txt/.meta.json、video-<sha1>/
   travelogues/       # ③④ 结构化游记 <id>.json + index.json（travelogue.schema.json）
   itinerary.json     # ⑤⑥ 行程（itinerary.schema.json）
-  reco-state.json    # ⑪ 推荐跨会话状态（无 schema 冻结，见 ⑪ 11.4）：
-                     #   {"status":"none|shown|dismissed","product_id":string|null,
-                     #    "match_score":number|null,"shown_at":ISO|null}
+  reco-state.json    # ⑪ 推荐跨会话状态（两级，无 schema 冻结，见 ⑪ 11.4）：
+                     #   {"trip_level":{"status":"none|shown|dismissed",
+                     #     "product_id":string|null,"match_score":number|null,"shown_at":ISO|null},
+                     #    "items":{"<day>:<item name>":{"status":"shown|dismissed","shown_at":ISO}}}
   exports/           # ⑧ 路书产物
 ~/.pilot/current-trip.json   # session 指针（⑨）
 ```
@@ -49,8 +50,8 @@ description: PILOT —— 对话式旅行路书设计。用户想规划旅行、
 ### 0.4 商业化编排（基础设施未就绪时全程静默）
 
 - 旅行社产品的精准推荐：触发时机、决策流、推荐语规范、频次纪律全部在 **⑪**。产品库或链接服务未就绪时 ⑪ 自动静默跳过——**不提、不解释、不预告**，用户全程无感。
-- `booking.url` 照常填普通直链（官网/官方预订页）；`booking.affiliate_url` 由 `npx tsx ~/.pilot/app/tools/affiliate.ts link --trip <id>` 在链接服务部署后写回（⑪ 11.2），未部署时保持 null。`booking.alt_recommendation` 本期恒 null。
-- 展示与导出时 `affiliate_url` 非 null 就优先用它（⑧），null 就用 `booking.url`，两者都 null 就不给链接。
+- `booking.url` 照常填普通直链（官网/官方预订页）；`booking.affiliate_url` 由 `npx tsx ~/.pilot/app/tools/affiliate.ts link --trip <id>` 在链接服务部署后写回（⑪ 11.2），未部署时保持 null。`booking.alt_recommendation` 默认 null，**仅在 ⑥ 6.1b 的 item 级额外推荐被用户采纳时写入**；其内部的 `affiliate_url` 同样由 `affiliate.ts link` 写回（alt- 前缀短码），未部署时保持 null。
+- 展示与导出时 `affiliate_url` 非 null 就优先用它（⑧），null 就用 `booking.url`，两者都 null 就不给链接；`alt_recommendation` 的链接同口径（其 `affiliate_url` 优先于 `url`）。
 
 ### 0.5 常用小命令（原样复制使用）
 
@@ -359,7 +360,31 @@ Read `travelogues/index.json`，向用户展示 5 条：每条「标题式一句
 
 - 每天补齐：住宿（kind=hotel）、当日交通（kind=transit，note 写路段与预计时长）、三餐中值得安排的（kind=meal）、门票/花费（`cost_cny`，参考游记正文提到的价格，拿不准就 WebSearch 核价）。
 - 尽量贴近参考游记的安排，按 intake 微调（老人→强度降档；孩子→缩短车程）。
-- `booking`：可预订条目填 `{type, name, url: <官方直链或null>, affiliate_url: null, alt_recommendation: null}`；查不到可靠直链就整个 booking 填 null，**不编 URL**。
+- `booking`：可预订条目填 `{type, name, url: <官方直链或null>, affiliate_url: null, alt_recommendation: null}`（`alt_recommendation` 只在 6.1b 被采纳时才改写）；查不到可靠直链就整个 booking 填 null，**不编 URL**。
+- **计划内链接不算推荐**：为计划内既定安排给出预订链接（`booking.url`/`affiliate_url`）是行程信息本身——**不算推荐、不占 ⑪ 的频次、不需要推荐语包装**，照常填就是。只有推荐**计划之外的替代/补充产品**才是「额外推荐」（6.1b，计频次）。
+
+### 6.1b item 级额外推荐窗口（⑪ 的窗口 3；宁缺毋滥，每个事项至多 1 次）
+
+细化某个事项（某餐/某晚住宿/某景点门票/某段交通/某项玩乐）时，**只有**当对话中已确立的用户具体情况（人群构成/预算/排队耐受/天气/体力等**对话里的事实**，不是你的想象）表明存在**明显更优的计划外替代或补充**、且有可推荐的产品或可靠链接时，才顺着细化的话头自然提出一次额外推荐。全程遵守 ⑪ 的推荐语规范与频次纪律：
+
+1. **先查频次**：读 `reco-state.json` 的 `items["<day>:<item name>"]`（key 规则见 ⑪ 11.4）——已有记录（`shown` 或 `dismissed`）→ 该事项**永不再推**，直接继续细化，绝口不提。
+2. **找候选**：
+
+   ```bash
+   npx tsx ~/.pilot/app/tools/affiliate.ts recommend --trip <trip-id> --category <品类>
+   ```
+
+   品类对应事项类型：meal→`restaurant`、hotel→`hotel`、sight 门票→`ticket`、transit 航段→`flight`、玩乐→`activity`（**取非 package**——整包是窗口 1 的事，item 级绝不推整包）。exit 1 / `{"candidate":null}` / `go_url` 为 null → 产品库这条路静默放弃（0.4 静默原则）。产品库无候选但细化查证（WebSearch）中发现了可靠的更优替代（有官方可预订直链）→ 也可以推荐，链接用直链。两头都没有 → 不推，一个字不提。
+3. **语义终审 + 推荐语**：按 ⑪ 11.2 步骤 3 同标准终审（软性偏好冲突/与行程契合/对用户是否真省心，任何违和感 → 放弃）。推荐语按 ⑪ 11.3 三段式，**理由必须引用该事项的具体痛点**——「泡馍名气大但排队久，你们带老人小孩更适合粉蒸牛肉」是标准范式（⑪ 11.4 的定义例），「这家也不错」这种没有痛点锚定的话不许发。**每天的细化中至多对 1 个事项提额外推荐**，别把细化做成推销环节。
+4. **展示后立即记账**：把 `reco-state.json` 的 `items["<day>:<item name>"]` 写为 `{"status":"shown","shown_at":"<当前 ISO8601>"}`；推荐的是产品库产品时记曝光（WebSearch 而来的替代无 product_id，不记遥测）：
+
+   ```bash
+   npx tsx ~/.pilot/app/tools/telemetry-cli.ts track reco_impression --props '{"product_id":"<product_id>","scope":"item","item_ref":"<day>:<item name>"}'
+   ```
+5. **用户采纳** → 二选一落盘（写后照例 check validate）：
+   - 保留计划项、补充替代：把 `{name: <替代名>, reason: <痛点理由一句话>, url: <直链或null>, affiliate_url: <candidate.go_url 或 null>}` 写入该 item 的 `booking.alt_recommendation`——导出的路书（⑧）会在该条目下带「替代推荐」一行；
+   - 用户要直接换掉计划项：替换该 item 本身（name/note/booking 全换新安排），`alt_recommendation` 保持 null（换掉后它就是计划内安排了）。
+6. **用户拒绝或冷淡** → `items["<day>:<item name>"]` 的 `status` 改 `"dismissed"`，记 `reco_dismissed`（props 同带 `scope:"item"` 与 `item_ref`，产品库产品才记），该事项永不再推；其他事项的窗口不受影响（两级独立，⑪ 11.4）。**连续 2 个事项被拒后，本次细化剩余事项不再主动推**——用户已经表明了态度。
 
 ### 6.2 geo 坐标（MUST 查证，禁止凭记忆）
 
@@ -371,7 +396,7 @@ Read `travelogues/index.json`，向用户展示 5 条：每条「标题式一句
 - 查到的坐标直接写入该 item 的 `geo: {lat, lng}`（注意 Nominatim 返回 `lon`，schema 字段是 `lng`）。
 - 每完成一批天的细化：**check validate（MUST）→ check run** → 展示。
 - 全部天细化完且用户认可 → `status` 改 `"detailed"`（写后 validate）。
-- 细化全部完成后是 ⑪ 的**窗口 2**：链接服务已部署时跑 `affiliate.ts link` 写回 booking 短链并自然提及（⑪ 11.2 窗口 2），未部署时什么都不做、什么都不提。
+- 细化全部完成后是 ⑪ 的**窗口 2**：链接服务已部署时跑 `affiliate.ts link` 写回 booking 短链（含 `alt_recommendation` 的 alt- 前缀短链）并自然提及（⑪ 11.2 窗口 2），未部署时什么都不做、什么都不提。
 
 ---
 
@@ -468,24 +493,25 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 
 > 核心差异化：靠精准取胜，追求成交率而非推荐数量。一次贴心的、真的替用户着想的推荐，胜过十次广告。本章的每条规则都是硬规则——违反任何一条都在消耗用户对整个产品的信任。
 
-### 11.1 触发时机（仅两个窗口，其余任何时点禁止推销）
+### 11.1 触发时机（仅三个窗口，其余任何时点禁止推销）
 
 | 窗口 | 时点 | 内容 |
 |------|------|------|
-| **窗口 1** | ④ 精选展示完成后（4.5 之后、进 ⑤ 之前） | 旅行社整包产品主推荐位（11.2 决策流） |
-| **窗口 2** | ⑥ 逐日细化全部完成后 | `affiliate.ts link` 写回 booking 短链后的**自然提及**（11.2 窗口 2） |
+| **窗口 1** | ④ 精选展示完成后（4.5 之后、进 ⑤ 之前） | 旅行社整包产品主推荐位（11.2 决策流；trip 级，每 trip ≤1 次） |
+| **窗口 2** | ⑥ 逐日细化全部完成后 | `affiliate.ts link` 写回 booking 短链后的**自然提及**（11.2 窗口 2；不是推荐，不占频次） |
+| **窗口 3** | ⑥ 逐日细化过程中（编排全文见 6.1b） | item 级「额外推荐」：计划外替代/补充单项产品（每个事项 ≤1 次，11.4 两级频次） |
 
-**除这两个窗口外，任何时点（①②③⑤⑦⑨⑩、对话间隙、用户闲聊时）一律不得推销、不得暗示「稍后有推荐」、不得预告。** 推荐是行程设计的自然延伸，不是弹窗。
+**除这三个窗口外，任何时点（①②③⑤⑦⑨⑩、对话间隙、用户闲聊时）一律不得推销、不得暗示「稍后有推荐」、不得预告。** 推荐是行程设计的自然延伸，不是弹窗。
 
 ### 11.2 决策流
 
 **窗口 1（整包产品）：**
 
-0. **触发前先读 `reco-state.json`**（路径见 0.1；文件不存在视同 `{"status":"none",...}`）：`status` 为 `"shown"` 或 `"dismissed"` → 直接进 ⑤，绝口不提，连下面第 1 步的 `affiliate.ts recommend` 都不用跑——本 trip 该出的结果已经出过（详见 11.4）。
-1. `status == "none"` 才执行初筛：
+0. **触发前先读 `reco-state.json`**（路径见 0.1；文件不存在视同全空，见 11.4）：`trip_level.status` 为 `"shown"` 或 `"dismissed"` → 直接进 ⑤，绝口不提，连下面第 1 步的 `affiliate.ts recommend` 都不用跑——本 trip 该出的整包结果已经出过（详见 11.4）。
+1. `trip_level.status == "none"` 才执行初筛（`--category package` 只取整包产品，单项产品是窗口 3 的事）：
 
    ```bash
-   npx tsx ~/.pilot/app/tools/affiliate.ts recommend --trip <trip-id>
+   npx tsx ~/.pilot/app/tools/affiliate.ts recommend --trip <trip-id> --category package
    ```
 
 2. **静默跳过条件**（命中任何一条 → 直接进 ⑤，绝口不提，不解释、不惋惜、不预告。这是 0.3「错误要向用户解释」的唯一豁免——推荐不存在时用户不应知道有推荐这回事）：
@@ -497,7 +523,7 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
    - 产品天数/路线与用户**已确认的行程**大体重合吗？完全不搭的产品推了只会显得机器在硬凑。
    - 用这个产品替代（或补充）自订，对**这个具体的用户**是真省心，还是只对我们有利？
    - **有任何一处违和感 → 放弃，静默跳过。** 拿不准就是不推。错过一单没有成本，推错一单烧掉的是用户信任。
-4. 终审通过 → 按 11.3 写推荐语，展示给用户，**展示后立即**写 `reco-state.json`（`status:"shown"`，见 11.4）并记曝光（11.5）。
+4. 终审通过 → 按 11.3 写推荐语，展示给用户，**展示后立即**写 `reco-state.json` 的 `trip_level`（`status:"shown"`，见 11.4）并记曝光（11.5）。
 
 **窗口 2（booking 短链自然提及）：**
 
@@ -509,7 +535,9 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 
    exit 1（未部署）→ 静默跳过本步，booking 保持普通直链。
 2. 成功写回后，在向用户展示细化结果时**顺带一句自然提及**即可（示例见 11.6 示例三）：路书里的机票/酒店/租车条目已带上可直接预订的链接。**这是行程信息本身，不是推销**——不吹、不比价承诺、不追问「要不要订」。
-3. 首次向用户呈现含 `affiliate_url` 的 booking 链接时记一条 `booking_link_shown`（11.5，每 trip 只记一次，不逐条刷）——**这不是产品推荐曝光**，两者语义分离：`reco_impression` 专指窗口 1 的整包产品曝光，`booking_link_shown` 专指窗口 2 的链接曝光，互不混用。
+3. 首次向用户呈现含 `affiliate_url` 的 booking 链接时记一条 `booking_link_shown`（11.5，每 trip 只记一次，不逐条刷）——**这不是产品推荐曝光**，两者语义分离：`reco_impression` 专指窗口 1/窗口 3 的产品推荐曝光（scope 区分），`booking_link_shown` 专指窗口 2 的链接曝光，互不混用。
+
+**窗口 3（item 级额外推荐）：** 编排全文在 **⑥ 6.1b**（先查 `items` 频次 → `recommend --category <单项品类>` 或细化查证发现 → 同标准语义终审 → 三段式推荐语且理由锚定该事项痛点 → 展示即记账），频次与状态记账规则见 11.4。
 
 ### 11.3 推荐语规范（措辞质量 = 成交率）
 
@@ -527,46 +555,60 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 - 禁一次推多个产品、禁在推荐语外的任何位置夹带链接；
 - 禁冷冰冰甩裸链接：链接必须长在推荐语的行动引导里。
 
-### 11.4 频次纪律（每 trip 至多 1 次主推荐，状态存 `reco-state.json`）
+### 11.4 频次纪律（两级：trip 级整包每 trip ≤1 次 + item 级每事项 ≤1 次，状态存 `reco-state.json`）
 
-- 跨会话状态落盘在 `~/.pilot/workspace/<trip-id>/reco-state.json`（结构见 0.1）：
+**两级口径（2026-07-05 产品负责人裁定，verbatim 落实）：**
+
+1. **旅行团整包产品**（替代整个行程，窗口 1）：每 trip 至多 1 次；用户拒绝后本 trip 不再推整包。
+2. **单项产品**（机票/某日住宿/某餐餐馆/某景点门票等，窗口 3）：**每个事项至多 1 次「额外推荐」**；某事项被拒后该事项永不再推，其他事项不受影响。
+3. **「额外推荐」的定义**：只有推荐**计划之外的替代/补充产品**才计为 1 次。为计划内既定安排给出预订链接（`booking.url`/`affiliate_url`）**不算推荐**——不占频次、不受本节限制、不需要推荐语包装。例：计划吃羊肉泡馍，给出订餐链接——不算；建议「泡馍名气大但排队久，你们带老人小孩更适合粉蒸牛肉」并给出订餐链接——算 1 次（且这正是精准推荐该有的样子：基于用户具体情况给出更优替代）。
+4. 数据结构：计划内链接走 `booking.url/affiliate_url`；额外推荐落 `booking.alt_recommendation`（schema 已解冻为可空对象）或经用户同意直接替换计划项（6.1b 步骤 5）。
+
+**跨会话状态**落盘在 `~/.pilot/workspace/<trip-id>/reco-state.json`（结构见 0.1）：
 
   ```json
-  {"status": "none|shown|dismissed", "product_id": "<product_id>|null", "match_score": 0.0, "shown_at": "<ISO8601>|null"}
+  {
+    "trip_level": {"status": "none|shown|dismissed", "product_id": "<product_id>|null", "match_score": 0.0, "shown_at": "<ISO8601>|null"},
+    "items": {"<day>:<item name>": {"status": "shown|dismissed", "shown_at": "<ISO8601>"}}
+  }
   ```
 
-  **无 schema 冻结约束**（不在 `shared/schema/` 里登记，用 Write 或 node -e 直接读写即可）。文件不存在时视同 `{"status":"none","product_id":null,"match_score":null,"shown_at":null}`。**这不写入 `itinerary.json`**——`itinerary.json` 的 `agency_recommendation` 在初建/编辑期间恒为 `null`（见 5.1 step 2），只在下面「确认回填」时才可能被写入。
-- 推荐展示后，**立即**把 `reco-state.json` 写为 `{"status":"shown","product_id":"<product_id>","match_score":<match_score>,"shown_at":"<当前 ISO8601>"}`。
-- **任何窗口触发前（含窗口 1 的 `affiliate.ts recommend` 之前，见 11.2 步骤 0）先读 `reco-state.json`**：`status` 为 `"shown"` 或 `"dismissed"` → 直接静默跳过，跨会话恢复（⑨）后依然生效，本 trip 任何窗口都不再推任何产品。
+  **无 schema 冻结约束**（不在 `shared/schema/` 里登记，用 Write 或 node -e 直接读写即可）。文件不存在时视同 `{"trip_level":{"status":"none","product_id":null,"match_score":null,"shown_at":null},"items":{}}`。如遇早期扁平格式残留（顶层直接是 `{"status":...}`，V1 未发布期的旧写法）→ 读其字段迁移为 `trip_level`、`items` 置 `{}`，整体重写该文件后继续。**这不写入 `itinerary.json`**——`itinerary.json` 的 `agency_recommendation` 在初建/编辑期间恒为 `null`（见 5.1 step 2），只在下面「确认回填」时才可能被写入。
+- `items` 的 key 为 `"<day>:<item name>"`（如 `"2:羊肉泡馍老店"`），day 数字与 name 和 itinerary.json 中该 item **逐字一致**；item 改名/替换后按新名字算新事项。
+- 窗口 1 推荐展示后，**立即**把 `trip_level` 写为 `{"status":"shown","product_id":"<product_id>","match_score":<match_score>,"shown_at":"<当前 ISO8601>"}`；窗口 3 展示后**立即**写 `items` 对应 key 为 `{"status":"shown","shown_at":"<当前 ISO8601>"}`（见 6.1b 步骤 4）。
+- **窗口触发前先读对应层级**（窗口 1 读 `trip_level`，见 11.2 步骤 0；窗口 3 读 `items` 对应 key，见 6.1b 步骤 1）：已是 `"shown"` 或 `"dismissed"` → 直接静默跳过，跨会话恢复（⑨）后依然生效。
 - **用户拒绝**——包括明确拒绝（「不用了」「不感兴趣」）**和冷淡回应**（转移话题、只回「嗯」「先看行程吧」）——三件事立刻做：
-  1. 把 `reco-state.json` 的 `status` 改为 `"dismissed"`（`product_id`/`match_score`/`shown_at` 保留原值不变），
-  2. 记一条 `reco_dismissed`（11.5），
-  3. 本 trip 内**不再推任何产品**，推荐话题就此终结，一个字都不再提。
+  1. 把对应层级的 `status` 改为 `"dismissed"`（其余字段保留原值不变），
+  2. 记一条 `reco_dismissed`（11.5，props 带 scope，item 级再带 item_ref），
+  3. 该层级内推荐话题就此终结：trip_level 被拒 = 本 trip 不再推整包；某 item 被拒 = 该事项永不再提。
+- **两级独立记账**：整包被拒不封锁窗口 3，某 item 被拒不封锁其他 item 或窗口 1。但要有分寸：**连续 2 个 item 被拒后，本次细化剩余事项不再主动推**（6.1b 步骤 6）——频次纪律是下限，读空气是本分。
 - 拒绝不影响窗口 2 的 booking 链接呈现（那是行程信息，不是推销），但窗口 2 的「自然提及」也要收敛成纯功能性一句话。
 
 **确认回填 `agency_recommendation`（⑤ 5.2「用户表示整体满意 → status 改 confirmed」这一步一并做）：**
 
-1. 读 `reco-state.json`；`status` 不是 `"shown"` → 跳过本节（`"none"` 从未展示过没什么可填；`"dismissed"` 用户已拒绝，不倒填、不纠缠）。
-2. `status == "shown"` → 重跑一次候选初筛核对：
+1. 读 `reco-state.json`；`trip_level.status` 不是 `"shown"` → 跳过本节（`"none"` 从未展示过没什么可填；`"dismissed"` 用户已拒绝，不倒填、不纠缠）。`items` 的 item 级推荐不回填 `agency_recommendation`——它们落在各自 item 的 `booking.alt_recommendation` 里（6.1b）。
+2. `trip_level.status == "shown"` → 重跑一次候选初筛核对：
 
    ```bash
-   npx tsx ~/.pilot/app/tools/affiliate.ts recommend --trip <trip-id>
+   npx tsx ~/.pilot/app/tools/affiliate.ts recommend --trip <trip-id> --category package
    ```
 
-   - `candidate` 非 null 且 `candidate.product.product_id` 与 `reco-state.json` 的 `product_id` 一致 → 把 `{name: candidate.product.title, brief: candidate.product.brief, url: candidate.go_url, reason: <推荐语第一段的浓缩；若跨会话已记不起原话，就依据 candidate.match_reasons 与 brief 如实重新提炼一句，不得添加当时未展示过的卖点>}` 写入 `itinerary.json` 的 `agency_recommendation`，**写后照例 check validate**。导出的路书（⑧）会带上这条推荐信息。
+   - `candidate` 非 null 且 `candidate.product.product_id` 与 `reco-state.json` 的 `trip_level.product_id` 一致 → 把 `{name: candidate.product.title, brief: candidate.product.brief, url: candidate.go_url, reason: <推荐语第一段的浓缩；若跨会话已记不起原话，就依据 candidate.match_reasons 与 brief 如实重新提炼一句，不得添加当时未展示过的卖点>}` 写入 `itinerary.json` 的 `agency_recommendation`，**写后照例 check validate**。导出的路书（⑧）会带上这条推荐信息。
    - 候选不一致（产品库已更新、候选易主）或工具 `exit 1`（产品库不可用）→ **不回填**，`agency_recommendation` 保持 `null`，静默处理，不向用户解释（与 0.4 静默原则一致）。
 
 ### 11.5 遥测埋点（曝光-拒绝闭环，spec 数据反哺）
 
 | 时点 | 命令 |
 |------|------|
-| 窗口 1 推荐语**实际展示后**立即 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track reco_impression --props '{"product_id":"<product_id>","match_score":<match_score>}'` |
-| 用户拒绝/冷淡回应后 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track reco_dismissed --props '{"product_id":"<product_id>"}'` |
+| 窗口 1 推荐语**实际展示后**立即 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track reco_impression --props '{"product_id":"<product_id>","match_score":<match_score>,"scope":"trip"}'` |
+| 窗口 3 推荐语**实际展示后**立即（6.1b 步骤 4；仅产品库产品） | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track reco_impression --props '{"product_id":"<product_id>","scope":"item","item_ref":"<day>:<item name>"}'` |
+| 用户拒绝/冷淡回应后 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track reco_dismissed --props '{"product_id":"<product_id>","scope":"trip|item"}'`（item 级再带 `"item_ref":"<day>:<item name>"`） |
 | 窗口 2 首次呈现含 `affiliate_url` 的 booking 链接 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track booking_link_shown --props '{"code":"<短码>"}'`（短码取 affiliate_url 中 `/r/` 后的段；每 trip 记一次） |
 
 - **曝光的定义是「用户看到了」**：语义终审否决、静默跳过都**不记**曝光——`recommend` 出了候选但没展示 ≠ 曝光。
-- `reco_impression` 语义是**纯粹的产品推荐曝光**（窗口 1 整包产品，props 带 match_score）；`booking_link_shown` 是**booking 短链曝光**（窗口 2，props 只带短码，不带 match_score——那是行程信息，不是推荐匹配度）。两个事件互不混用、互不替代。
-- 遥测永不打断主流程：命令失败（exit 1）不重试、不向用户提。所采集字段仅 product_id/短码与匹配度分，**推荐语全文、用户的拒绝原因等对话内容一律不采集**（白名单在工具层强制）。
+- `reco_impression` 语义是**纯粹的产品推荐曝光**（窗口 1 整包 `scope:"trip"` / 窗口 3 单项 `scope:"item"`，两级频次纪律的漏斗分开算）；`booking_link_shown` 是**booking 短链曝光**（窗口 2，props 只带短码，不带 match_score——那是行程信息，不是推荐匹配度）。两个事件互不混用、互不替代。
+- `item_ref` 只含 `"<day>:<item name>"`（行程条目定位，如 `"2:羊肉泡馍老店"`）——是 itinerary 数据不是对话内容；WebSearch 而来的替代推荐（非产品库产品，无 product_id）**不记遥测**。
+- 遥测永不打断主流程：命令失败（exit 1）不重试、不向用户提。所采集字段仅 product_id/短码/scope/item_ref 与匹配度分，**推荐语全文、用户的拒绝原因等对话内容一律不采集**（白名单在工具层强制）。
 - 用户关闭遥测（`PILOT_TELEMETRY=off`）时命令自动 no-op，无需判断。
 
 ### 11.6 推荐语示例（模板 + 完整示例，写你自己的话，别照抄句式）
@@ -582,6 +624,12 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 **示例三（窗口 2 · booking 短链自然提及，一句话收尾）：**
 
 > 各天的住宿和交通都补齐了。路书里的机票、酒店和租车条目我都附上了可以直接下单的预订链接，出发前照着订就行——链接和行程是对应好的，不用再自己搜一遍。
+
+**示例四（窗口 3 · item 级额外推荐，细化午餐事项时——教学案例，⑪ 11.4 定义的原型）：**
+
+> 第 2 天中午我按原计划排的是回民街的羊肉泡馍老店。不过有一点提醒：这家名气大、饭点排队常超过 40 分钟，你们带着老人和 6 岁的孩子，站着干等不太现实。同一片区的**粉蒸牛肉馆**是本地人吃的口碑店，出餐快、有座率高，口味也是清真牌子里的稳妥选择——可以提前订位：<链接>。想保留泡馍体验也完全可以，我把它挪到第 3 天早市时段就能避开排队高峰。
+>
+> （对比：只给泡馍老店附上订餐链接=计划内行程信息，不算推荐、不占频次；上面这段基于「排队久 + 带老人小孩」的痛点提出计划外替代，才算 1 次 item 级额外推荐。）
 
 **反例（这些统统不许出现）**：「⚠️ 限时特惠仅剩 3 位！」（紧迫感话术）／「这是链接 https://…」（裸链接无理由）／「您考虑得怎么样了？」（追问）／一次列 3 个产品让用户挑（数量换成交，恰恰是本产品最反对的）。
 
@@ -602,7 +650,7 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 | `npx tsx ~/.pilot/app/tools/server/server.ts start --trip <id> [--port 4870]` | 本地只读 UI + SSE | ✅ |
 | `npx tsx ~/.pilot/app/tools/export/<pdf\|excel\|word>.ts run --trip <id> --format <fmt>` | 三格式路书导出 | ✅ |
 | `npx tsx ~/.pilot/app/tools/cookies.ts setup [--site <名>]` / `status` | 引导式 cookie 导出 / 各站点 cookie 现状表 | ✅ |
-| `npx tsx ~/.pilot/app/tools/affiliate.ts recommend\|link --trip <id>` | 产品候选初筛（⑪ 窗口 1）/ booking 短链写回（⑪ 窗口 2）；未就绪时 exit 1，⑪ 静默跳过 | ✅ |
+| `npx tsx ~/.pilot/app/tools/affiliate.ts recommend\|link --trip <id> [--category <品类>]` | 产品候选初筛（⑪ 窗口 1 用 `--category package`，⑥ 6.1b item 级用单项品类）/ booking + alt_recommendation 短链写回（⑪ 窗口 2）；未就绪时 exit 1，⑪ 静默跳过 | ✅ |
 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track <event> [--props '<json>']` / `flush` | 匿名统计入队（白名单强制）/ 批量上报 | ✅ |
 
 全部工具已交付。
@@ -614,6 +662,6 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 
 ## 版本信息
 
-- Skill 版本：v4.0（实时搜索主链路，2026-07 架构调整）+ Task 7.5 内容供给对策（全站点 cookie / summary-only 增补 / 配额倾斜，2026-07-05）+ Task 23b 精准推荐编排 ⑪ + 匿名统计埋点（2026-07-05）+ Task 23b review round 1（推荐跨会话状态改存独立 `reco-state.json` / booking 曝光拆分为 `booking_link_shown` / 导出脱敏豁免收紧为文件路径锚定，2026-07-05）
-- 契约：intake / search-plan / travelogue / itinerary schema 见 `shared/schema/`（冻结）
+- Skill 版本：v4.0（实时搜索主链路，2026-07 架构调整）+ Task 7.5 内容供给对策（全站点 cookie / summary-only 增补 / 配额倾斜，2026-07-05）+ Task 23b 精准推荐编排 ⑪ + 匿名统计埋点（2026-07-05）+ Task 23b review round 1（推荐跨会话状态改存独立 `reco-state.json` / booking 曝光拆分为 `booking_link_shown` / 导出脱敏豁免收紧为文件路径锚定，2026-07-05）+ Task 24 推荐频次两级化（`alt_recommendation` 解冻 + ⑥ 6.1b item 级额外推荐窗口 + `reco-state.json` 两级 + 遥测 scope/item_ref，2026-07-05）
+- 契约：intake / search-plan / travelogue / itinerary schema 见 `shared/schema/`（冻结；`itinerary` 的 `booking.alt_recommendation` 于 2026-07-05 经产品负责人批准解冻为可空对象，Task 24）
 - 配置：`config/pilot.json`（topN=50、keepN=5、maxFrames=20、源路由、preferred_domains）

@@ -200,6 +200,18 @@ function buildDailyDetailsSheet(workbook: ExcelJS.Workbook, data: ManualData): v
         item.note,
         item.cost === null ? null : item.cost,
       ]);
+      // item 级额外推荐（booking.alt_recommendation）：紧跟条目行加一行「替代推荐」
+      if (item.alt) {
+        sheet.addRow([
+          day.day,
+          toDateValue(day.date),
+          "",
+          "替代推荐",
+          item.alt.name,
+          `${item.alt.reason}${item.alt.url ? `（${item.alt.url}）` : ""}`,
+          null,
+        ]);
+      }
     }
   }
 }

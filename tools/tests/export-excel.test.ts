@@ -245,6 +245,32 @@ describe("runExcel", () => {
       expect(sheet.getColumn(2).numFmt).toBe("yyyy-mm-dd");
       expect(sheet.getRow(2).getCell(2).value).toBeInstanceOf(Date);
     });
+
+    it("alt_recommendation 非 null → 条目行后加一行「替代推荐」（名称+理由+链接）", async () => {
+      const itinerary = makeItinerary();
+      itinerary.days[0].items[3].booking!.alt_recommendation = {
+        name: "粉蒸牛肉馆",
+        reason: "泡馍名气大但排队久，带老人小孩更适合粉蒸牛肉",
+        url: "https://example.com/fenzheng",
+        affiliate_url: null,
+      };
+      setupFixtureTrip({}, { days: itinerary.days });
+      const result = await runExcel(tripId);
+
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile(result.path);
+      const sheet = workbook.getWorksheet("每日详细行程")!;
+      // 多出恰好 1 行替代推荐
+      expect(sheet.actualRowCount).toBe(TOTAL_ITEMS + 2);
+      let altRow: ExcelJS.Row | undefined;
+      sheet.eachRow((row) => {
+        if (row.getCell(4).value === "替代推荐") altRow = row;
+      });
+      expect(altRow).toBeDefined();
+      expect(altRow!.getCell(5).value).toBe("粉蒸牛肉馆");
+      expect(String(altRow!.getCell(6).value)).toContain("排队久");
+      expect(String(altRow!.getCell(6).value)).toContain("https://example.com/fenzheng");
+    });
   });
 
   describe("Sheet3 出行必备自检清单（模板）", () => {

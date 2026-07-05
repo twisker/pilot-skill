@@ -68,6 +68,11 @@
             "enum": ["low", "mid", "high"],
             "description": "价位档：low <500 / mid 500-1500 / high >1500（人均每天，CNY）"
           },
+          "category": {
+            "type": "string",
+            "enum": ["package", "flight", "hotel", "restaurant", "ticket", "activity"],
+            "description": "产品品类（2026-07-05 additive 新增，推荐频次两级化）：package=旅行团整包（替代整个行程，trip 级窗口 1）；其余为单项产品（item 级额外推荐取非 package）。缺省视同 package（兼容旧数据）"
+          },
           "price_cny": {
             "type": ["number", "null"],
             "minimum": 0,

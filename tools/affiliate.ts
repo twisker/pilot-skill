@@ -11,10 +11,13 @@ import { verifyPayload } from "./lib/signing";
 //   link --trip <id>       读 itinerary.json 的 booking 条目，按
 //                          config/affiliate-map.<locale>.json（品类→短码前缀）
 //                          生成 https://<GO_DOMAIN>/r/<code>?d=..&dt=.. 短链，
-//                          写回 booking.affiliate_url。
+//                          写回 booking.affiliate_url；booking.alt_recommendation
+//                          非 null 且其 affiliate_url 为 null 时同样生成短链
+//                          （短码前缀 alt-<品类前缀>，与计划内预订分开归因）。
 //                          GO_DOMAIN 未配置 → exit 1（链接服务未部署）。
 //
-//   recommend --trip <id>  读 ~/.pilot/products/products.json（Ed25519 验签
+//   recommend --trip <id> [--category <品类>]
+//                          读 ~/.pilot/products/products.json（Ed25519 验签
 //                          通过才使用，公钥内嵌本文件），按 intake 画像做
 //                          **确定性初筛评分**（目的地硬匹配 + 人群/预算/偏好
 //                          加权），stdout 输出 top1 候选：
@@ -22,6 +25,10 @@ import { verifyPayload } from "./lib/signing";
 //                          match_score < 0.6 → {candidate: null}（宁缺毋滥，
 //                          spec §10.4b）。go_url 为产品 go 短链（GO_DOMAIN 未
 //                          配置时 null——链接服务未部署，SKILL 层应视同无候选）。
+//                          --category 按产品品类过滤（package/flight/hotel/
+//                          restaurant/ticket/activity；产品缺 category 视同
+//                          package）：窗口 1 整包用 package，⑥ item 级额外
+//                          推荐取对应单项品类（spec §10.4b 频次纪律两级）。
 //
 // 边界：语义终审与推荐语生成是 SKILL 的事（Task 23b），本工具只出候选，
 // 不生成任何面向用户的文案。曝光遥测（reco_impression）也不在这里记——
@@ -60,12 +67,19 @@ interface Intake {
   locale: "zh" | "en";
 }
 
+interface AltRecommendation {
+  name: string;
+  reason: string;
+  url: string | null;
+  affiliate_url: string | null;
+}
+
 interface Booking {
   type: "flight" | "hotel" | "car" | "restaurant" | "ticket";
   name: string;
   url?: string | null;
   affiliate_url: string | null;
-  alt_recommendation: unknown;
+  alt_recommendation: AltRecommendation | null;
 }
 
 interface ItineraryItem {
@@ -89,6 +103,13 @@ interface Itinerary {
 
 export type PartyTag = "family" | "seniors" | "couple" | "solo" | "friends";
 export type BudgetBand = "low" | "mid" | "high";
+export type ProductCategory =
+  | "package"
+  | "flight"
+  | "hotel"
+  | "restaurant"
+  | "ticket"
+  | "activity";
 
 export interface Product {
   product_id: string;
@@ -101,6 +122,8 @@ export interface Product {
   budget_band: BudgetBand;
   price_cny?: number | null;
   duration_days?: number | null;
+  /** 产品品类（缺省视同 package，兼容旧数据；item 级额外推荐取非 package） */
+  category?: ProductCategory;
 }
 
 interface ProductsFile {
@@ -268,6 +291,25 @@ function runLink(tripId: string): unknown {
         dt: day.date,
         suggested_network: SUGGESTED_NETWORK_BY_TYPE[booking.type],
       });
+      // item 级额外推荐（booking.alt_recommendation，spec §10.4b 两级）：
+      // 短码用 alt- 前缀区分口径（漏斗统计里额外推荐与计划内预订分开算）。
+      // affiliate_url 已非 null（如 SKILL 采纳 products.json 候选时直接填了
+      // 产品 go 短链）则不覆盖——产品短码自带 product_id 归因，替换反而丢维度。
+      const alt = booking.alt_recommendation;
+      if (alt && typeof alt === "object" && alt.affiliate_url === null) {
+        const altCode = buildShortCode(`alt-${prefix}`, booking.type, alt.name);
+        const altUrl = buildGoUrl(domain, altCode, intake.destination, day.date);
+        alt.affiliate_url = altUrl;
+        links.push({ day: day.day, name: `替代推荐:${alt.name}`, code: altCode, url: altUrl });
+        manifest.push({
+          code: altCode,
+          type: booking.type,
+          name: alt.name,
+          dest: intake.destination,
+          dt: day.date,
+          suggested_network: SUGGESTED_NETWORK_BY_TYPE[booking.type],
+        });
+      }
     }
   }
 
@@ -400,10 +442,35 @@ export function pickCandidate(products: Product[], intake: Intake): ScoredProduc
   return best;
 }
 
-function runRecommend(tripId: string): unknown {
+const PRODUCT_CATEGORIES: readonly ProductCategory[] = [
+  "package",
+  "flight",
+  "hotel",
+  "restaurant",
+  "ticket",
+  "activity",
+];
+
+/** 产品品类（缺省视同 package，兼容无 category 的旧数据） */
+export function productCategory(product: Product): ProductCategory {
+  return product.category ?? "package";
+}
+
+function runRecommend(tripId: string, categoryFlag?: string): unknown {
   const intake = readJson<Intake>(tripId, "intake.json");
   const products = loadVerifiedProducts();
-  const candidate = pickCandidate(products.products, intake);
+  let pool = products.products;
+  if (categoryFlag !== undefined) {
+    if (!(PRODUCT_CATEGORIES as readonly string[]).includes(categoryFlag)) {
+      throw new CliError(
+        `--category 非法值: ${categoryFlag}（支持 ${PRODUCT_CATEGORIES.join("/")}）`
+      );
+    }
+    // 两级推荐口径（spec §10.4b）：窗口 1 整包 --category package；
+    // ⑥ item 级额外推荐按事项品类取非 package 单项产品。
+    pool = pool.filter((p) => productCategory(p) === categoryFlag);
+  }
+  const candidate = pickCandidate(pool, intake);
   if (!candidate) {
     return { candidate: null };
   }
@@ -442,7 +509,7 @@ export function main(argv: string[]): unknown {
     case "link":
       return runLink(flags.trip);
     case "recommend":
-      return runRecommend(flags.trip);
+      return runRecommend(flags.trip, flags.category);
     default:
       throw new CliError(`未知子命令: ${cmd ?? "(空)"}（支持 link/recommend）`);
   }
