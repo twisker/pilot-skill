@@ -1,20 +1,26 @@
-# PILOT 文档
+# PILOT Docs / PILOT 文档
+
+[中文 ↓](#中文) | [English ↓](#english)
+
+Repo home & install instructions: [github.com/twisker/pilot-skill](https://github.com/twisker/pilot-skill)
+
+---
+
+## 中文
 
 **PILOT** 是一个 Claude Code Skill：对话式旅行路书设计工具。实时搜索全网真实游记 → 结构化精选 → 对话生成与编辑行程 → 冲突检查 → 导出 Excel / PDF / Word 三格式路书，另配浏览器地图伴侣视图。全程本地运行。
 
-仓库主页与安装说明：[github.com/twisker/pilot-skill](https://github.com/twisker/pilot-skill)
-
-## 文档导览
+### 文档导览
 
 | 文档 | 你想做什么 |
 |------|-----------|
-| [快速上手教程](tutorial-quickstart.md) | 从安装到导出第一份路书，完整走一遍（含预期终端输出） |
-| [cookie 导出指南](guide-cookies.md) | 提升马蜂窝/知乎/穷游/小红书/B站的抓取成功率 |
-| [配置参考](guide-config.md) | `config/pilot.json` 全字段说明（源路由 / 精选数量 / 地图等） |
-| [路书导出说明](guide-export.md) | 四段结构、Excel 四 sheet、模板 sheet 用法 |
-| [常见问题 FAQ](faq.md) | 抓取被拦 / 无 key 地图 / 如何更新 等 |
+| [快速上手教程](zh/tutorial-quickstart.md) | 从安装到导出第一份路书，完整走一遍（含预期终端输出） |
+| [cookie 导出指南](zh/guide-cookies.md) | 提升马蜂窝/知乎/穷游/小红书/B站的抓取成功率 |
+| [配置参考](zh/guide-config.md) | `config/pilot.json` 全字段说明（源路由 / 精选数量 / 地图等） |
+| [路书导出说明](zh/guide-export.md) | 四段结构、Excel 四 sheet、模板 sheet 用法 |
+| [常见问题 FAQ](zh/faq.md) | 抓取被拦 / 无 key 地图 / 如何更新 等 |
 
-## 一分钟了解主链路
+### 一分钟了解主链路
 
 ```
 ① 意图收集     对话问清目的地/日期/人群/预算/交通/偏好 → intake.json
@@ -29,7 +35,7 @@
 
 所有数据都在你的机器上：行程与素材在 `~/.pilot/workspace/`，程序安装在 `~/.pilot/app/`，cookie 在 `~/.pilot/cookies/`（绝不上传）。
 
-## 快速命令速查
+### 快速命令速查
 
 ```bash
 npx tsx ~/.pilot/app/tools/trip.ts current            # 查看当前行程指针
@@ -39,3 +45,53 @@ npx tsx ~/.pilot/app/tools/server/server.ts start --trip <trip-id>   # 手动启
 ```
 
 > 这些命令一般不需要手动敲——在 Claude Code 对话里 PILOT 会自己调用。它们在排查问题时有用。
+
+---
+
+## English
+
+**PILOT** is a Claude Code Skill for conversational travel itinerary design. It searches real travelogues across the web in real time, structures and curates the best ones, drafts and edits a day-by-day itinerary through conversation, runs deterministic conflict checks, and exports a three-format itinerary book (Excel / PDF / Word), plus a read-only map companion in your browser. Runs entirely on your own machine.
+
+### Documentation
+
+| Doc | What it's for |
+|-----|----------------|
+| [Quickstart tutorial](en/tutorial-quickstart.md) | Install to exporting your first itinerary book, start to finish (with expected terminal output) |
+| [Cookie export guide](en/guide-cookies.md) | Improve scraping success on Mafengwo / Zhihu / Qyer / Xiaohongshu / Bilibili |
+| [Configuration reference](en/guide-config.md) | Every field in `config/pilot.json` (source routing / curation count / map, etc.) |
+| [Itinerary export guide](en/guide-export.md) | The four-section structure, Excel's 4 sheets, and how to use the template sheets |
+| [FAQ](en/faq.md) | Scraping blocked / no map key / how to update, and more |
+
+### The main flow in one minute
+
+```
+1. Intake            Conversation clarifies destination/dates/group/budget/
+                      transport/preferences -> intake.json
+2. Search planning    Multi-source search plan -> WebSearch -> pick candidates
+                      -> fetch full text (playwright fallback)
+3. Structuring        One sub-agent per travelogue, normalized into a shared
+                      travelogue JSON schema
+4. Curation           Validate -> dedupe -> machine score + taste score
+                      -> keep the top 5 (with a video supplement pass)
+5. Itinerary draft     Trim the best travelogue into a day-by-day itinerary;
+                      conversational edits are validated as you make them
+6. Day-by-day detail   Fill in lodging/transport/meals/tickets per day;
+                      coordinates verified online (never from memory)
+7. Conflict check      Deterministic rules: long drives, overpacked days,
+                      over-budget totals, anomalous coordinate distances
+8. Export              PDF -> Excel -> Word, saved to
+                      ~/.pilot/workspace/<trip-id>/exports/
+```
+
+All data stays on your machine: trips and material in `~/.pilot/workspace/`, the program installed at `~/.pilot/app/`, cookies in `~/.pilot/cookies/` (never uploaded).
+
+### Quick command reference
+
+```bash
+npx tsx ~/.pilot/app/tools/trip.ts current            # show the current trip pointer
+npx tsx ~/.pilot/app/tools/cookies.ts setup           # guided site-cookie export
+npx tsx ~/.pilot/app/tools/cookies.ts status          # per-site cookie status table
+npx tsx ~/.pilot/app/tools/server/server.ts start --trip <trip-id>   # start the map companion manually
+```
+
+> You usually won't need to type these by hand — PILOT calls them for you during the conversation. They're useful when troubleshooting.

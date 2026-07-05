@@ -1,5 +1,7 @@
 # 路书导出说明
 
+**中文** | [English](../en/guide-export.md)
+
 PILOT 导出三种格式，内容同源（同一份 `itinerary.json` + `intake.json` + 参考游记索引），结构统一为**四段**。产物在 `~/.pilot/workspace/<trip-id>/exports/`。
 
 | 格式 | 定位 | 特点 |

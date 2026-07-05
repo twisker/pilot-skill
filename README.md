@@ -1,140 +1,156 @@
-# PILOT —— 对话式旅行路书设计（Claude Code Skill）
+**English** | [中文](README.zh.md)
 
-> **PILOT** is a Claude Code Skill that designs travel itineraries through conversation: it searches real travelogues across the Chinese web in real time, structures and curates the best ones, drafts a day-by-day itinerary you can edit by talking, checks it against deterministic conflict rules, and exports a print-ready roadbook in Excel / PDF / Word — with a live read-only map view in your browser. Chinese-first (V1), runs entirely on your own machine.
+[![CI](https://github.com/twisker/pilot-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/twisker/pilot-skill/actions/workflows/ci.yml)
 
-在 Claude Code 里输入一句话，PILOT 帮你把一次旅行从「想法」聊成「可以直接带上路的路书」。
+# PILOT — Conversational Travel Itinerary Design (Claude Code Skill)
+
+> **PILOT** is a Claude Code Skill that designs travel itineraries through conversation: it searches real travelogues across the web in real time, structures and curates the best ones, drafts a day-by-day itinerary you can edit by talking, checks it against deterministic conflict rules, and exports a print-ready itinerary book in Excel / PDF / Word — with a live read-only map view in your browser. Chinese-source-first (V1) since its search sources are Chinese travel platforms, but the Skill conversation itself works in any language your Claude Code session uses. Runs entirely on your own machine.
+
+Type one line into Claude Code, and PILOT turns a trip from "an idea" into "an itinerary book you can actually take on the road."
 
 ```
-/pilot 十一云南自驾 6 天，两大人带娃
+/pilot 6-day family road trip in Yunnan, two adults and a kid
 ```
 
-## 它是什么
+## What it is
 
-PILOT 不是「让 AI 凭空编一份行程」。它的主链路是：
+PILOT isn't "have the AI make up an itinerary from nothing." Its main flow is:
 
-**对话收集需求 → 实时搜索全网真实游记 → 逐条结构化整理 → 精选蓝本 → 生成行程 → 对话编辑 → 逐日细化（含坐标查证）→ 确定性冲突检查 → 三格式导出。**
+**Conversational intake → real-time search across real travelogues → structure each one → curate a template → generate the itinerary → edit it by conversation → day-by-day refinement (with coordinate verification) → deterministic conflict checks → export in three formats.**
 
-行程的每一天都能追溯到某条真实游记的某一天（`source_ref` 记账），坐标必须联网查证不许凭记忆填，覆盖率如实汇报绝不假装数据充足。
+Every day of the itinerary traces back to a specific day in a specific real travelogue (tracked via `source_ref`); coordinates must be verified online, never filled from memory; and coverage is reported honestly — PILOT never pretends it had more material than it did.
 
-## 亮点
+## Highlights
 
-- **实时搜索真实游记**：马蜂窝 / 穷游 / 携程攻略 / 知乎 / 小红书 / B站 / 图虫 / 500px 多源检索，playwright 兜底抓取，B站视频游记可抽帧理解
-- **结构化精选**：每条游记结构化为统一 schema，机器打分（完整度/粒度/媒体丰富度/新鲜度）+ 品味分双重排序，去重后留前 5 条做蓝本候选
-- **对话式编辑**：「第 3 天换成 2 号线路的安排」「加一天禾木」——跨游记拼接、逐日细化都在对话里完成，每轮改动自动过 schema 校验与冲突规则（长途驾车 / 单日过密 / 预算超限 / 坐标距离异常等）
-- **地图伴侣**：本地只读网页（时间线 / 地图 / 参考游记卡片墙），行程文件一变浏览器自动刷新（SSE），天地图底图
-- **三格式路书**：Excel（4 sheet，含费用公式与消费流水模板）/ PDF / Word，结构对齐资深旅行者的实战路书习惯
-- **全程本地**：数据全部落盘 `~/.pilot/workspace/`，cookie 只存本机，零云端依赖
+- **Real-time search of real travelogues**: multi-source search across Mafengwo / Qyer / Ctrip guides / Zhihu / Xiaohongshu / Bilibili / Tuchong / 500px, with a playwright scraping fallback; video travelogues on Bilibili are understood via frame sampling
+- **Structured curation**: every travelogue is normalized into a shared schema, then double-ranked by a machine score (completeness / granularity / media richness / freshness) and a taste score; after de-duplication, the top 5 become template candidates
+- **Conversational editing**: "swap day 3 for the route from travelogue #2," "add a day in Hemu" — cross-travelogue splicing and day-by-day refinement all happen in conversation, with every edit automatically passing schema validation and conflict rules (excessively long drives, overpacked days, over-budget totals, anomalous coordinate distances, etc.)
+- **Map companion**: a local read-only page (timeline / map / reference-travelogue card wall) that auto-refreshes in the browser (via SSE) whenever the itinerary file changes, using a Tianditu basemap
+- **Three-format itinerary book**: Excel (4 sheets, with cost formulas and an expense-log template) / PDF / Word, structured to match how experienced travelers actually use a paper itinerary book on the road
+- **Fully local**: all data is written to `~/.pilot/workspace/`, cookies stay on your machine only, zero cloud dependency
 
-## 系统要求
+## Requirements
 
-| 依赖 | 要求 |
-|------|------|
-| [Claude Code](https://claude.com/claude-code) | 必需（PILOT 是 Claude Code Skill） |
+| Dependency | Requirement |
+|------------|-------------|
+| [Claude Code](https://claude.com/claude-code) | Required (PILOT is a Claude Code Skill) |
 | Node.js | >= 20 |
-| git | 任意近期版本 |
-| yt-dlp + ffmpeg | 可选，仅视频游记理解需要——**无需自己装**，安装时选「是」或事后 `npx tsx tools/setup-video.ts install --yes` 一键搞定（跨平台静态二进制，见下方「视频依赖一键安装」） |
-| 操作系统 | **macOS / Windows / Linux 均支持**（Windows 原生支持，不需要 WSL） |
+| git | any recent version |
+| yt-dlp + ffmpeg | Optional, only needed for understanding video travelogues — **you don't need to install these yourself**: answer "yes" during install, or run `npx tsx tools/setup-video.ts install --yes` any time afterward for a one-command setup (cross-platform static binaries, see "One-command video dependency setup" below) |
+| OS | **macOS / Windows / Linux all supported** (Windows works natively, no WSL required) |
 
-## 三步安装
+## Install in three steps
 
-**macOS / Linux：**
+**macOS / Linux:**
 
 ```bash
-# 1. clone 到固定安装位（推荐；clone 到别处也行，install.sh 会自动复制过去）
+# 1. Clone to the fixed install location (recommended; cloning elsewhere also
+#    works, install.sh will copy it over automatically)
 git clone https://github.com/twisker/pilot-skill.git ~/.pilot/app
 
-# 2. 运行安装脚本（检查依赖 → npm install → 下载 playwright chromium → 注册 skill）
+# 2. Run the installer (checks dependencies -> npm install -> downloads
+#    playwright chromium -> registers the skill)
 cd ~/.pilot/app && ./install.sh
 
-# 3. 新开一个 Claude Code 会话，开聊
-#    /pilot 十一去川西自驾一周，摄影为主
+# 3. Open a new Claude Code session and start talking
+#    /pilot 6-day family road trip in Yunnan, two adults and a kid
 ```
 
-**Windows（原生 PowerShell / cmd，不需要 WSL / Git Bash）：**
+**Windows (native PowerShell / cmd, no WSL / Git Bash needed):**
 
 ```powershell
-# 1. clone 到固定安装位
+# 1. Clone to the fixed install location
 git clone https://github.com/twisker/pilot-skill.git $env:USERPROFILE\.pilot\app
 
-# 2. 运行安装脚本（同一份 install.mjs，跨平台逻辑一致；Windows 用 node 直接跑）
+# 2. Run the installer (the same install.mjs, identical cross-platform logic;
+#    run directly with node on Windows)
 cd $env:USERPROFILE\.pilot\app
 node install.mjs
 
-# 3. 新开一个 Claude Code 会话，开聊
-#    /pilot 十一去川西自驾一周，摄影为主
+# 3. Open a new Claude Code session and start talking
+#    /pilot 6-day family road trip in Yunnan, two adults and a kid
 ```
 
-安装脚本会询问是否顺带安装视频依赖（yt-dlp/ffmpeg），选「是」或者用 `--with-video --yes` 免交互一键装好；跳过也不影响文字游记主链路，随时可以事后补装（见下）。
+The installer will ask whether to also install the video dependencies (yt-dlp/ffmpeg) — answer "yes," or use `--with-video --yes` for a non-interactive one-shot install. Skipping it doesn't affect the main text-travelogue flow, and you can always add it later (see below).
 
-安装后可选配置（详见 [docs/](docs/index.md)）：
+Optional post-install configuration (see [docs/](docs/index.md) for details):
 
-- **天地图 key**（地图视图底图）：在 `~/.pilot/app/.env` 写入 `TIANDITU_KEY=<key>`，[免费申请](https://console.tianditu.gov.cn/)（浏览器端类型）
-- **站点 cookie**（大幅提升抓取成功率）：`npx tsx ~/.pilot/app/tools/cookies.ts setup`
-- **视频依赖一键安装**（B 站视频游记理解用，跳过也不影响主链路）：
+- **Tianditu key** (map basemap): put `TIANDITU_KEY=<key>` in `~/.pilot/app/.env`, [apply for free](https://console.tianditu.gov.cn/) (choose the "browser-side" app type)
+- **Site cookies** (significantly improves scraping success rate): `npx tsx ~/.pilot/app/tools/cookies.ts setup`
+- **One-command video dependency setup** (for understanding Bilibili video travelogues; skipping this doesn't affect the main flow):
 
   ```bash
   cd ~/.pilot/app/tools && npx tsx setup-video.ts install --yes
   ```
 
-  自动下载 yt-dlp + ffmpeg/ffprobe 官方静态二进制到 `~/.pilot/bin/`（macOS/Windows/Linux 都是官方发行的单文件构建，不需要 brew / winget / apt，也不需要预装 python）。已经装过且能跑就直接跳过；要强制重下加 `--force`。macOS 上如果二进制被 Gatekeeper 拦下（提示"无法验证开发者"），按报错里给的 `xattr -d com.apple.quarantine <路径>` 处理一次即可。
+  Automatically downloads official static binaries of yt-dlp + ffmpeg/ffprobe into `~/.pilot/bin/` (single-file official builds for macOS/Windows/Linux — no brew / winget / apt needed, and no python required either). If it's already installed and working, it's skipped automatically; add `--force` to force a re-download. On macOS, if the binary gets blocked by Gatekeeper ("cannot verify developer"), run the `xattr -d com.apple.quarantine <path>` command shown in the error message once, then retry.
 
-## 快速上手：一段示例对话
+## Quickstart: a sample conversation
 
 ```
-你：/pilot 十一云南自驾 6 天，两大人带娃
+You: /pilot 6-day family road trip in Yunnan, two adults and a kid
 
-PILOT：好的！确认几件事：具体几号出发几号回？从哪个城市出发？预算大概多少？
+PILOT: Sounds great! A few things to confirm: exact departure/return dates?
+       Which city are you starting from? Rough budget?
 
-你：10 月 1 到 6，昆明出发，预算 1 万5
+You: Oct 1 to 6, starting from Kunming, budget around $2,000
 
-PILOT：（创建 trip → 生成搜索计划 → 逐源搜索游记 → 抓取 → 结构化 → 精选）
-      本轮搜索覆盖率：
-      - 携程攻略：搜到 10 条 → 选 6 → 抓取成功 5
-      - 知乎：搜到 15 条 → 选 8 → 成功 6
-      - 马蜂窝：搜到 18 条 → 选 12 → 成功 2（其余被滑块验证码拦截）
+PILOT: (creates the trip -> builds a search plan -> searches each source for
+       travelogues -> fetches -> structures -> curates)
+      Coverage report for this round:
+      - Ctrip guides: 10 found -> 6 selected -> 5 fetched successfully
+      - Zhihu: 15 found -> 8 selected -> 6 fetched successfully
+      - Mafengwo: 18 found -> 12 selected -> 2 fetched successfully
+        (the rest blocked by a slider CAPTCHA)
       ...
-      精选出 5 条参考游记，推荐以「大理丽江环线 6 日」（评分 7.1，共 6 天）为蓝本 ...
+      Curated 5 reference travelogues, recommending "Dali-Lijiang Loop, 6 Days"
+      (score 7.1, 6 days) as the template ...
 
-你：可以。第 3 天太赶了，大理多待一天
+You: Sounds good. Day 3 is too rushed, add an extra night in Dali
 
-PILOT：（编辑 → 校验 → 冲突检查）已改：Day 3-4 大理两晚 ...
-      冲突检查：Day 5 丽江→泸沽湖段当日驾车约 300km（warn），要不要拆两天？
+PILOT: (edits -> validates -> runs conflict check) Updated: two nights in
+      Dali on Day 3-4 ...
+      Conflict check: Day 5's Lijiang -> Lugu Lake drive is about 300km
+      in one day (warn) — split it into two days?
 
-你：就这样，导出吧
+You: Leave it, let's export
 
-PILOT：（逐日细化 → 坐标查证 → 最终冲突检查 → 导出）
-      路书已导出：~/.pilot/workspace/yunnan-selfdrive-20261001/exports/
-      ├── 路书.pdf  ├── 路书.xlsx  └── 路书.docx
+PILOT: (day-by-day refinement -> coordinate verification -> final conflict
+      check -> export)
+      Itinerary book exported: ~/.pilot/workspace/yunnan-selfdrive-20261001/exports/
+      ├── itinerary.pdf  ├── itinerary.xlsx  └── itinerary.docx
 ```
 
-完整教程见 [docs/tutorial-quickstart.md](docs/tutorial-quickstart.md)。
+Full walkthrough: [docs/en/tutorial-quickstart.md](docs/en/tutorial-quickstart.md).
 
-## 文档
+## Documentation
 
-`docs/` 目录即文档站（GitHub Pages）。仓库维护者启用方式：GitHub 仓库 **Settings → Pages → Source 选 `main` 分支 `/docs` 目录**，保存即上线。
+`docs/` is the documentation site (GitHub Pages), available in both Chinese and English. To enable it as a maintainer: repo **Settings → Pages → Source → branch `main`, folder `/docs`**, save, and it's live.
 
-| 文档 | 内容 |
-|------|------|
-| [docs/index.md](docs/index.md) | 文档导览 |
-| [docs/tutorial-quickstart.md](docs/tutorial-quickstart.md) | 完整走一遍：安装 → 第一个行程 → 编辑 → 导出 |
-| [docs/guide-cookies.md](docs/guide-cookies.md) | cookie 导出全流程与各站说明 |
-| [docs/guide-config.md](docs/guide-config.md) | `config/pilot.json` 全字段参考 |
-| [docs/guide-export.md](docs/guide-export.md) | 路书四段结构与模板 sheet 用法 |
-| [docs/faq.md](docs/faq.md) | 常见问题 |
+| Doc | Contents |
+|-----|----------|
+| [docs/index.md](docs/index.md) | Documentation index (bilingual entry point) |
+| [docs/en/tutorial-quickstart.md](docs/en/tutorial-quickstart.md) | Full walkthrough: install → first trip → edit → export |
+| [docs/en/guide-cookies.md](docs/en/guide-cookies.md) | Full cookie-export flow and per-site notes |
+| [docs/en/guide-config.md](docs/en/guide-config.md) | Full field reference for `config/pilot.json` |
+| [docs/en/guide-export.md](docs/en/guide-export.md) | The itinerary book's four-section structure and template sheets |
+| [docs/en/faq.md](docs/en/faq.md) | Frequently asked questions |
 
-## 常见问题（速览）
+中文文档在 [docs/zh/](docs/zh/)（与英文版内容一一对应，非摘要翻译）。
 
-**为什么需要 cookie？**
-马蜂窝/小红书等站点对未登录访问有反爬限制（验证码、登录墙）。PILOT 提供引导式工具在你本机浏览器登录后导出 cookie，**只保存在本机 `~/.pilot/cookies/`，绝不上传任何服务器**。不导出 cookie 也能用，只是这些源的抓取成功率低，PILOT 会如实汇报并降级。详见 [docs/guide-cookies.md](docs/guide-cookies.md)。
+## FAQ (at a glance)
 
-**天地图 key 怎么申请？**
-[天地图控制台](https://console.tianditu.gov.cn/) 免费注册，创建「浏览器端」应用即得 key。没有 key 时地图视图显示引导文案，不影响行程设计主链路。
+**Why do I need cookies?**
+Sites like Mafengwo and Xiaohongshu apply anti-bot measures to unauthenticated access (CAPTCHAs, login walls). PILOT provides a guided tool to export cookies after you log in through a local browser window — **saved only on your machine at `~/.pilot/cookies/`, never uploaded to any server**. PILOT works without exporting cookies too, just with a lower fetch success rate on those sources — it reports this honestly and degrades gracefully. See [docs/en/guide-cookies.md](docs/en/guide-cookies.md).
 
-**抓取失败了怎么办？**
-部分源被验证码拦截是常态。PILOT 的降级链：WebSearch → WebFetch 直读 → playwright 兜底 → 摘要增补 → 如实汇报覆盖率并给你选项（继续 / 导 cookie 重试 / 换词重搜），绝不假装数据充足。详见 [docs/faq.md](docs/faq.md)。
+**How do I get a Tianditu key?**
+Sign up for free at the [Tianditu console](https://console.tianditu.gov.cn/) and create a "browser-side" app to get a key. Without a key, the map view shows a setup prompt and the main itinerary-design flow is unaffected.
+
+**What if fetching fails?**
+Some sources getting blocked by anti-bot measures is normal. PILOT's fallback chain: WebSearch → WebFetch direct read → playwright fallback → summary-only supplement → honest coverage report with options (continue / export cookies and retry / rephrase and search again) — it never pretends it had enough material. See [docs/en/faq.md](docs/en/faq.md).
 
 ## License
 
 Copyright (c) 2026 twisker. **All rights reserved.**
 
-允许个人非商业使用；未经书面授权，禁止商用与再分发。详见 [LICENSE](LICENSE)。
+Personal, non-commercial use is permitted; commercial use and redistribution require prior written permission. See [LICENSE](LICENSE).
