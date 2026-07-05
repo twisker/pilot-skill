@@ -367,7 +367,7 @@ Read `travelogues/index.json`，向用户展示 5 条：每条「标题式一句
 
 细化某个事项（某餐/某晚住宿/某景点门票/某段交通/某项玩乐）时，**只有**当对话中已确立的用户具体情况（人群构成/预算/排队耐受/天气/体力等**对话里的事实**，不是你的想象）表明存在**明显更优的计划外替代或补充**、且有可推荐的产品或可靠链接时，才顺着细化的话头自然提出一次额外推荐。全程遵守 ⑪ 的推荐语规范与频次纪律：
 
-1. **先查频次**：读 `reco-state.json` 的 `items["<day>:<item name>"]`（key 规则见 ⑪ 11.4）——已有记录（`shown` 或 `dismissed`）→ 该事项**永不再推**，直接继续细化，绝口不提。
+1. **先查频次**：读 `reco-state.json` 的 `items["<day>:<item name>"]`（key 规则见 ⑪ 11.4）——已有记录（`shown` 或 `dismissed`）→ 该事项**永不再推**，直接继续细化，绝口不提。**同一天同名条目必须先加区分后缀（如"驾车-上午/驾车-下午"），否则记账会互相覆盖。**
 2. **找候选**：
 
    ```bash
@@ -572,6 +572,8 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
     "items": {"<day>:<item name>": {"status": "shown|dismissed", "shown_at": "<ISO8601>"}}
   }
   ```
+
+  **重要防护**：同一天存在同名条目时，细化前必须先给条目名加区分后缀（如"驾车-上午/驾车-下午"），否则 items 记账会互相覆盖（误跳过或误封禁）。
 
   **无 schema 冻结约束**（不在 `shared/schema/` 里登记，用 Write 或 node -e 直接读写即可）。文件不存在时视同 `{"trip_level":{"status":"none","product_id":null,"match_score":null,"shown_at":null},"items":{}}`。如遇早期扁平格式残留（顶层直接是 `{"status":...}`，V1 未发布期的旧写法）→ 读其字段迁移为 `trip_level`、`items` 置 `{}`，整体重写该文件后继续。**这不写入 `itinerary.json`**——`itinerary.json` 的 `agency_recommendation` 在初建/编辑期间恒为 `null`（见 5.1 step 2），只在下面「确认回填」时才可能被写入。
 - `items` 的 key 为 `"<day>:<item name>"`（如 `"2:羊肉泡馍老店"`），day 数字与 name 和 itinerary.json 中该 item **逐字一致**；item 改名/替换后按新名字算新事项。

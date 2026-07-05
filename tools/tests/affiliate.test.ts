@@ -246,7 +246,8 @@ describe("affiliate link", () => {
     expect(resolveGoDomain("zh", {} as NodeJS.ProcessEnv, testPilotHome)).toBeNull();
   });
 
-  it("品类路由表缺失（发行仓形态）→ CliError 拒绝而非编造短链", () => {
+  // 私仓恒空跑，此用例仅在发行仓（无 affiliate-map）执行
+  it("品类路由表缺失（发行仓专属）→ CliError 拒绝而非编造短链", () => {
     setupTrip();
     process.env.GO_DOMAIN = "go-cn.example.cn";
     if (AFFILIATE_MAP_AVAILABLE) return; // 私仓有路由表，该形态不适用

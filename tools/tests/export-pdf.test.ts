@@ -57,7 +57,7 @@ function makeItinerary(overrides: Partial<Itinerary> = {}): Itinerary {
               type: "hotel",
               name: "乌鲁木齐大酒店",
               url: "https://example.com/hotel1",
-              affiliate_url: null,
+              affiliate_url: "https://go-cn.example.cn/r/ht-abc123?d=%E6%96%B0%E7%96%86&dt=2026-07-25",
               alt_recommendation: null,
             },
           },
@@ -174,7 +174,8 @@ describe("buildManualData", () => {
     // 4 住宿汇总
     expect(data.hotels.rows).toHaveLength(2);
     expect(data.hotels.subtotal).toBe(600);
-    expect(data.hotels.rows[0].bookingUrl).toBe("https://example.com/hotel1");
+    // affiliate_url 优先：fixture 同时有 url+affiliate_url，断言渲染取 affiliate_url
+    expect(data.hotels.rows[0].bookingUrl).toBe("https://go-cn.example.cn/r/ht-abc123?d=%E6%96%B0%E7%96%86&dt=2026-07-25");
     // 5 交通汇总
     expect(data.transport.modeLabel).toBe("自驾");
     expect(data.transport.longHaul).toHaveLength(2);
@@ -274,8 +275,9 @@ describe("renderManualHtml", () => {
     const data = buildManualData(tripId);
     const html = renderManualHtml(data);
 
-    // 验证 hotel booking URL 渲染为 <a> 标签
-    expect(html).toContain('<a href="https://example.com/hotel1">https://example.com/hotel1</a>');
+    // 验证 hotel booking URL 渲染为 <a> 标签（affiliate_url 优先于 url）
+    expect(data.hotels.rows[0].bookingUrl).toBe("https://go-cn.example.cn/r/ht-abc123?d=%E6%96%B0%E7%96%86&dt=2026-07-25");
+    expect(html).toContain("https://go-cn.example.cn/r/ht-abc123");
   });
 
   it("travelogue URL 渲染为可点击链接", () => {
