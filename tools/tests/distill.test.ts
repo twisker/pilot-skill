@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, existsSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createTrip, tripDir } from "../lib/workspace";
+import { createTrip, readJson, tripDir } from "../lib/workspace";
+import type { ProgressState } from "../lib/progress";
 import { runValidate, runDedupe, runScore, runIndex, main, CliError } from "../distill";
 import {
   jaccardSimilarity,
@@ -302,6 +303,12 @@ describe("distill validate", () => {
     // 原内容保留，只是改名
     const preserved = JSON.parse(readFileSync(travelogueFile("invalid-1.json.invalid"), "utf-8"));
     expect(preserved.id).toBe("invalid-1");
+
+    // Task 26 review Important-2：接入点断言——progress.json 落到 stage=distill，
+    // 且末次上报为完成态（current===total，两个文件都跑完）
+    const progress = readJson<ProgressState>(tripId, "progress.json");
+    expect(progress.stage).toBe("distill");
+    expect(progress.current).toBe(progress.total);
   });
 
   it("非法 JSON 语法也被判定失败并改名", () => {

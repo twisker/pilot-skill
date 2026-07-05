@@ -232,6 +232,8 @@ npx tsx ~/.pilot/app/tools/scrape.ts run --trip <trip-id>
 
 > **抓取现实（实证，勿抱幻想）**：马蜂窝有腾讯滑块验证码 WAF，playwright 也可能被拦（meta 里是 48 字验证码文案、status=partial）；小红书无 cookie 直接判 failed（reason: no-cookie）。**首选源可能大面积失败，这是常态**，处理方式见 ⑩，绝不假装数据充足。
 
+跑本命令前按 ⓪.2 说清三件事（在做什么/预计多久/进度去哪看——本命令进度落在 `progress.json` 的 `fetch` 阶段，终端与本地 UI 均可看）。
+
 ### 2.6 summary-only 增补
 
 scrape 全部跑完后，若「`fetched + scraped`」条目数 < `keepN×2`（`config.keepN` 默认 5，即 <10 条），先对 `status="failed"` 的条目里能救的做一轮降级增补，再走 2.7 的低产话术——增补是为了把可结构化素材尽量拉到能继续的水平，不是取代如实汇报。
@@ -451,7 +453,7 @@ npx tsx ~/.pilot/app/tools/check.ts run --trip <trip-id>
 
 内容基准：`references/manual-outline.md`（穷游手册九章节）。
 
-导出前置：itinerary `status ∈ {confirmed, detailed}`，且刚跑过一次 ⑦。用户指定格式；没指定就三件套全出（顺序 PDF → Excel → Word）：
+导出前置：itinerary `status ∈ {confirmed, detailed}`，且刚跑过一次 ⑦。用户指定格式；没指定就三件套全出（顺序 PDF → Excel → Word）。执行前按 ⓪.2 说清三件事（在做什么/预计多久——几十秒到数分钟视格式而定/进度去哪看——`progress.json` 的 `export` 阶段 + 本地 UI）：
 
 ```bash
 npx tsx ~/.pilot/app/tools/export/pdf.ts run --trip <trip-id> --format pdf

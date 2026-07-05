@@ -154,9 +154,14 @@ export function createApp(tripId: string, opts: AppOptions = {}): App {
   // depth:0 让 dir 根只看直接子项（覆盖 intake.json/itinerary.json/search-plan.json，
   // 不递归进 raw/ 数百个抓取产物文件）；travelogues/ 单独传一个 root 覆盖其直接子项
   // （index.json + 各 <id>.json）。事件处理里再按 .json 后缀过滤掉目录本身的 add/unlink。
+  // awaitWriteFinish 吸收半写状态：长任务期间 progress.json 等文件被高频原子写
+  // （write tmp + rename）覆盖，短 stabilityThreshold/pollInterval 在不明显拖慢
+  // SSE 推送（server.test.ts 断言 2s 内收到事件）的前提下，避免对同一次写入的
+  // 中间态重复触发事件（Task 26 review Important-1 修复）。
   const watcher = chokidar.watch([dir, path.join(dir, "travelogues")], {
     ignoreInitial: true,
     depth: 0,
+    awaitWriteFinish: { stabilityThreshold: 80, pollInterval: 20 },
   });
   watcher.on("all", (event, changedPath) => {
     if (event !== "add" && event !== "change") return;

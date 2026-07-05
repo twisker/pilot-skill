@@ -23,6 +23,8 @@ let latestState = { intake: null, travelogues: null, itinerary: null, progress: 
 let latestConfig = { tianditu_key: null };
 let activeTab = "timeline";
 let mapInstance = null;
+let mapReady = false; // mapInstance 是否已跑完首次 "load"（sources/layers 已建好）
+let latestMapPoints = []; // renderMap 每次调用时的最新坐标点，供 "load" 回调兜底用最新数据建图
 
 // ---------------------------------------------------------------------------
 // 长任务体验进度面板（spec §10.9）：九阶段 stepper + 当前阶段进度条/沙漏 + message。
@@ -292,14 +294,109 @@ function collectGeoPoints(state) {
   return points;
 }
 
+// 按 day 分组，产出 day-lines / day-points 两个 GeoJSON FeatureCollection 的原料。
+// 首次建图（createMapLayers）与后续复用实例更新（updateMapLayers）共用，避免逻辑漂移。
+function buildDayFeatures(points) {
+  const byDay = new Map();
+  for (const p of points) {
+    if (!byDay.has(p.day)) byDay.set(p.day, []);
+    byDay.get(p.day).push(p);
+  }
+
+  const lineFeatures = [];
+  for (const [day, pts] of byDay) {
+    if (pts.length >= 2) {
+      lineFeatures.push({
+        type: "Feature",
+        properties: { day },
+        geometry: { type: "LineString", coordinates: pts.map((p) => [p.lng, p.lat]) },
+      });
+    }
+  }
+
+  const pointFeatures = points.map((p) => ({
+    type: "Feature",
+    properties: { day: p.day, name: p.name, note: p.note },
+    geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+  }));
+
+  return { byDay, lineFeatures, pointFeatures };
+}
+
+// 首次建图：addSource/addLayer + 交互事件绑定，mapInstance 生命周期内只跑一次。
+function createMapLayers(points) {
+  const { byDay, lineFeatures, pointFeatures } = buildDayFeatures(points);
+  const colorExpr = dayColorMatchExpr(byDay.keys());
+
+  mapInstance.addSource("day-lines", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: lineFeatures },
+  });
+  mapInstance.addLayer({
+    id: "day-lines-layer",
+    type: "line",
+    source: "day-lines",
+    paint: { "line-width": 3, "line-color": colorExpr, "line-opacity": 0.7 },
+  });
+
+  mapInstance.addSource("day-points", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: pointFeatures },
+  });
+  mapInstance.addLayer({
+    id: "day-points-layer",
+    type: "circle",
+    source: "day-points",
+    paint: {
+      "circle-radius": 7,
+      "circle-color": colorExpr,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+
+  mapInstance.on("mouseenter", "day-points-layer", () => {
+    mapInstance.getCanvas().style.cursor = "pointer";
+  });
+  mapInstance.on("mouseleave", "day-points-layer", () => {
+    mapInstance.getCanvas().style.cursor = "";
+  });
+  mapInstance.on("click", "day-points-layer", (e) => {
+    const feature = e.features && e.features[0];
+    if (!feature) return;
+    const props = feature.properties;
+    new maplibregl.Popup({ closeButton: true })
+      .setLngLat(feature.geometry.coordinates)
+      .setHTML(
+        `<div class="maplibre-popup-body"><div class="item-name">${escapeHtml(
+          props.name,
+        )}</div><div class="item-note">${escapeHtml(props.note)}</div></div>`,
+      )
+      .addTo(mapInstance);
+  });
+}
+
+// 复用实例：数据变化只 setData + 更新配色表达式，不重建 source/layer/事件绑定
+// （Task 26 review Important-1 修复：高频 SSE 事件下反复 destroy/recreate 地图造成闪烁/抖动）。
+function updateMapLayers(points) {
+  const { byDay, lineFeatures, pointFeatures } = buildDayFeatures(points);
+  const colorExpr = dayColorMatchExpr(byDay.keys());
+
+  const lineSource = mapInstance.getSource("day-lines");
+  const pointSource = mapInstance.getSource("day-points");
+  if (lineSource) lineSource.setData({ type: "FeatureCollection", features: lineFeatures });
+  if (pointSource) pointSource.setData({ type: "FeatureCollection", features: pointFeatures });
+  if (mapInstance.getLayer("day-lines-layer")) {
+    mapInstance.setPaintProperty("day-lines-layer", "line-color", colorExpr);
+  }
+  if (mapInstance.getLayer("day-points-layer")) {
+    mapInstance.setPaintProperty("day-points-layer", "circle-color", colorExpr);
+  }
+}
+
 function renderMap(state, config) {
   const guidance = document.getElementById("map-guidance");
   const container = document.getElementById("map");
-
-  if (mapInstance) {
-    mapInstance.remove();
-    mapInstance = null;
-  }
 
   if (!config || !config.tianditu_key) {
     guidance.hidden = false;
@@ -319,6 +416,15 @@ function renderMap(state, config) {
 
   guidance.hidden = true;
   container.hidden = false;
+  latestMapPoints = points;
+
+  if (mapInstance) {
+    if (mapReady) {
+      updateMapLayers(points);
+    }
+    // 未 ready 时不做事：正在进行中的首次 "load" 回调会用 latestMapPoints 兜底最新数据建图。
+    return;
+  }
 
   const key = config.tianditu_key;
   const avgLng = points.reduce((sum, p) => sum + p.lng, 0) / points.length;
@@ -343,74 +449,8 @@ function renderMap(state, config) {
   mapInstance.addControl(new maplibregl.NavigationControl(), "top-right");
 
   mapInstance.on("load", () => {
-    const byDay = new Map();
-    for (const p of points) {
-      if (!byDay.has(p.day)) byDay.set(p.day, []);
-      byDay.get(p.day).push(p);
-    }
-    const colorExpr = dayColorMatchExpr(byDay.keys());
-
-    const lineFeatures = [];
-    for (const [day, pts] of byDay) {
-      if (pts.length >= 2) {
-        lineFeatures.push({
-          type: "Feature",
-          properties: { day },
-          geometry: { type: "LineString", coordinates: pts.map((p) => [p.lng, p.lat]) },
-        });
-      }
-    }
-    mapInstance.addSource("day-lines", {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: lineFeatures },
-    });
-    mapInstance.addLayer({
-      id: "day-lines-layer",
-      type: "line",
-      source: "day-lines",
-      paint: { "line-width": 3, "line-color": colorExpr, "line-opacity": 0.7 },
-    });
-
-    const pointFeatures = points.map((p) => ({
-      type: "Feature",
-      properties: { day: p.day, name: p.name, note: p.note },
-      geometry: { type: "Point", coordinates: [p.lng, p.lat] },
-    }));
-    mapInstance.addSource("day-points", {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: pointFeatures },
-    });
-    mapInstance.addLayer({
-      id: "day-points-layer",
-      type: "circle",
-      source: "day-points",
-      paint: {
-        "circle-radius": 7,
-        "circle-color": colorExpr,
-        "circle-stroke-width": 2,
-        "circle-stroke-color": "#ffffff",
-      },
-    });
-
-    mapInstance.on("mouseenter", "day-points-layer", () => {
-      mapInstance.getCanvas().style.cursor = "pointer";
-    });
-    mapInstance.on("mouseleave", "day-points-layer", () => {
-      mapInstance.getCanvas().style.cursor = "";
-    });
-    mapInstance.on("click", "day-points-layer", (e) => {
-      const feature = e.features && e.features[0];
-      if (!feature) return;
-      const props = feature.properties;
-      new maplibregl.Popup({ closeButton: true })
-        .setLngLat(feature.geometry.coordinates)
-        .setHTML(
-          `<div class="maplibre-popup-body"><div class="item-name">${escapeHtml(
-            props.name,
-          )}</div><div class="item-note">${escapeHtml(props.note)}</div></div>`,
-        )
-        .addTo(mapInstance);
-    });
+    createMapLayers(latestMapPoints);
+    mapReady = true;
   });
 }
 
@@ -454,6 +494,9 @@ function initTabs() {
   });
 }
 
+const SSE_DEBOUNCE_MS = 300;
+let sseDebounceTimer = null;
+
 function initSSE() {
   const statusEl = document.getElementById("sse-status");
   const source = new EventSource("/events");
@@ -464,8 +507,15 @@ function initSSE() {
     statusEl.textContent = "连接中断，浏览器将自动重连…";
   };
   source.onmessage = () => {
-    // 简单粗暴：收到任何 update 就整体重新拉取 + 重渲染（V1 不做局部 diff）
-    refreshAll();
+    // 简单粗暴：收到任何 update 就整体重新拉取 + 重渲染（V1 不做局部 diff）；
+    // 300ms trailing debounce 合并突发事件（Task 26 review Important-1 修复：
+    // 长任务期间 progress.json 高频改写会打出一串 SSE 事件，逐条 refreshAll 造成
+    // 请求风暴/UI 抖动——debounce 后突发事件只触发最后一次刷新）。
+    if (sseDebounceTimer) clearTimeout(sseDebounceTimer);
+    sseDebounceTimer = setTimeout(() => {
+      sseDebounceTimer = null;
+      refreshAll();
+    }, SSE_DEBOUNCE_MS);
   };
 }
 

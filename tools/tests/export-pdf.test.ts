@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createTrip, writeJson } from "../lib/workspace";
+import { createTrip, readJson, writeJson } from "../lib/workspace";
+import type { ProgressState } from "../lib/progress";
 import { buildManualData, RenderError, type Itinerary, type Intake } from "../export/lib/render";
 import { renderManualHtml } from "../export/lib/html";
 import { runPdf, main, CliError } from "../export/pdf";
@@ -428,6 +429,13 @@ describe("runPdf / CLI", () => {
     const size = statSync(result.path).size;
     expect(size).toBeGreaterThan(30 * 1024);
     expect(result.bytes).toBe(size);
+
+    // Task 26 review Important-2：接入点断言——progress.json 落到 stage=export，
+    // 完成态 message 明确报出"导出完成"
+    const progress = readJson<ProgressState>(tripId, "progress.json");
+    expect(progress.stage).toBe("export");
+    expect(progress.current).toBe(progress.total);
+    expect(progress.message).toContain("PDF 导出完成");
   }, 20000);
 
   it("main 缺 --trip 抛 CliError", async () => {

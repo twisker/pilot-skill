@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { chromium, type Browser } from "playwright";
 import { createTrip, readJson, writeJson } from "../lib/workspace";
+import type { ProgressState } from "../lib/progress";
 import { runScrape, scrapeOnce, main, CliError } from "../scrape";
 import { extractFromHtml, extractTitle } from "../lib/extract";
 import { extractPaginated } from "../lib/sites/mafengwo";
@@ -402,6 +403,13 @@ describe("scrape: 混合批次（可达 + 不可达）", () => {
     const unreachablePick = pick.find((p) => p.url === unreachableUrl);
     expect(reachablePick?.status).toBe("scraped");
     expect(unreachablePick?.status).toBe("failed");
+
+    // Task 26 review Important-2：接入点断言——progress.json 落到 stage=fetch，
+    // total=批次条目数，且末次上报为完成态（current===total）
+    const progress = readJson<ProgressState>(tripId, "progress.json");
+    expect(progress.stage).toBe("fetch");
+    expect(progress.total).toBe(2);
+    expect(progress.current).toBe(progress.total);
   }, 30000);
 });
 

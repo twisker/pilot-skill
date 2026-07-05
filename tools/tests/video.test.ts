@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createTrip, readJson } from "../lib/workspace";
+import type { ProgressState } from "../lib/progress";
 import { computeFrameTimestamps, probeDuration, extractFrames } from "../lib/video-frames";
 import { storageStateToNetscape, type StorageState } from "../lib/cookie-convert";
 import {
@@ -516,6 +517,13 @@ describe("video.ts: prep 全流程（fake yt-dlp 下载 + 真实 ffmpeg/ffprobe 
     }
     const onDisk = readJson<Manifest>(tripId, `raw/video-${hash}/manifest.json`);
     expect(onDisk).toEqual(manifest);
+
+    // Task 26 review Important-2：接入点断言——全流程确实经历了 frames 抽帧阶段，
+    // 最终 progress.json 落在 stage=video 完成态（current===total===抽帧数）
+    const progress = readJson<ProgressState>(tripId, "progress.json");
+    expect(progress.stage).toBe("video");
+    expect(progress.current).toBe(progress.total);
+    expect(progress.current).toBe(manifest.frames.length);
   }, 30000);
 
   it("B 站 URL 且存在 cookie 文件时，yt-dlp 调用参数中带 --cookies", async () => {
