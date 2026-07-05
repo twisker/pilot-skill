@@ -1,5 +1,17 @@
 import { spawnSync } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync, mkdtempSync, chmodSync, rmSync, readdirSync, statSync, copyFileSync } from "node:fs";
+import {
+  createWriteStream,
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  chmodSync,
+  rmSync,
+  readdirSync,
+  statSync,
+  copyFileSync,
+} from "node:fs";
+import { createHash } from "node:crypto";
 import https from "node:https";
 import path from "node:path";
 import { tmpdir } from "node:os";
@@ -26,6 +38,15 @@ import { pilotBinDir, exeName } from "./lib/video-deps";
 // 无需处理 npm registry 不可达时的降级）。
 //
 // 幂等：目标文件已存在且 --version 正常 → 跳过；--force 强制重下。
+//
+// 完整性校验（Task 21 review Minor 修复）：
+//   yt-dlp —— GitHub Release 同目录发布 SHA2-256SUMS 清单，下载后计算 sha256
+//     与清单比对，防下载损坏/中间人篡改；不匹配直接判定安装失败，不落地可执行文件。
+//   ffmpeg/ffprobe —— evermeet.cx（darwin）/ gyan.dev（win32）均不提供官方校验和
+//     文件，johnvansickle.com（linux）虽有 md5 但非强制随每次发布更新、且 md5
+//     早已不具备防篡改意义；三个源均无法做等价的 sha256 校验。这里保持现状——
+//     下载后跑 -version 能成功执行即视为可用，是能力权衡（下载源本身是各平台
+//     事实标准静态构建，非任意第三方镜像），不是遗漏。
 // ---------------------------------------------------------------------------
 
 export class SetupVideoError extends Error {}
@@ -117,6 +138,105 @@ export function downloadFile(url: string, destPath: string, redirectsLeft = MAX_
   });
 }
 
+/** 与 downloadFile 同样跟随重定向，但把响应体收集为字符串（用于拉取 SHA2-256SUMS 清单） */
+export function downloadText(url: string, redirectsLeft = MAX_REDIRECTS): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { headers: { "User-Agent": USER_AGENT } }, (res) => {
+      const status = res.statusCode ?? 0;
+      if ([301, 302, 303, 307, 308].includes(status) && res.headers.location) {
+        res.resume();
+        if (redirectsLeft <= 0) {
+          reject(new SetupVideoError(`下载失败：重定向次数过多 / too many redirects: ${url}`));
+          return;
+        }
+        downloadText(res.headers.location, redirectsLeft - 1).then(resolve, reject);
+        return;
+      }
+      if (status !== 200) {
+        res.resume();
+        reject(new SetupVideoError(`下载失败（HTTP ${status}）/ download failed: ${url}`));
+        return;
+      }
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+      res.on("error", (err) => reject(err));
+    });
+    req.on("error", (err) => reject(err));
+  });
+}
+
+/** yt-dlp release 同目录发布的 SHA2-256SUMS 清单地址（跟随 latest 标签） */
+export function ytDlpChecksumsUrl(): string {
+  return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS";
+}
+
+/**
+ * 解析 SHA2-256SUMS 内容为「文件名 → 小写十六进制 sha256」的映射（纯函数，可单测）。
+ * 官方格式为逐行 "<64 位十六进制哈希>[空格/*空格]<文件名>"（sha256sum 输出格式，
+ * "*" 前缀表示 binary mode，可选）。忽略解析不出的行而非抛错，兼容清单里混入的
+ * 空行/未来新增字段。
+ */
+export function parseSha256Sums(content: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^([0-9a-fA-F]{64})\s+\*?(.+)$/);
+    if (!match) continue;
+    map.set(match[2].trim(), match[1].toLowerCase());
+  }
+  return map;
+}
+
+/** 流式计算文件 sha256（视频依赖二进制体积不大，但仍避免一次性读入内存） */
+export function sha256File(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    const stream = createReadStream(filePath);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => resolve(hash.digest("hex")));
+    stream.on("error", (err) => reject(err));
+  });
+}
+
+/**
+ * 校验刚下载的 yt-dlp 二进制与官方 SHA2-256SUMS 清单一致；清单下载失败、清单
+ * 里找不到对应文件名、或哈希不匹配，均视为校验失败并抛错中止安装——安全校验
+ * 宁可保守失败，不做"取不到清单就跳过"的静默降级。
+ */
+export async function verifyYtDlpChecksum(
+  filePath: string,
+  downloadUrl: string,
+  log: (msg: string) => void = () => {},
+): Promise<void> {
+  const fileName = downloadUrl.split("/").pop() ?? "";
+  let sumsContent: string;
+  try {
+    sumsContent = await downloadText(ytDlpChecksumsUrl());
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new SetupVideoError(
+      `yt-dlp 校验和清单下载失败，为安全起见中止安装 / failed to fetch SHA2-256SUMS, aborting install for safety: ${message}`,
+    );
+  }
+  const sums = parseSha256Sums(sumsContent);
+  const expected = sums.get(fileName);
+  if (!expected) {
+    throw new SetupVideoError(
+      `SHA2-256SUMS 中未找到 ${fileName} 的校验和条目，为安全起见中止安装 / checksum entry not found for ${fileName}, aborting install for safety`,
+    );
+  }
+  const actual = await sha256File(filePath);
+  if (actual !== expected) {
+    throw new SetupVideoError(
+      `yt-dlp 校验和不匹配，可能下载损坏或被篡改，已中止安装 / checksum mismatch, aborting install ` +
+        `(期望/expected ${expected}，实际/actual ${actual})`,
+    );
+  }
+  log(`yt-dlp 校验和通过 / checksum verified (sha256 ${actual})`);
+}
+
 function run(cmd: string, args: string[]): { ok: boolean; stdout: string; stderr: string } {
   const result = spawnSync(cmd, args, { encoding: "utf-8", shell: process.platform === "win32" });
   return { ok: result.status === 0, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
@@ -201,6 +321,13 @@ async function installYtDlp(binDir: string, opts: InstallOptions): Promise<Insta
   log(`下载 yt-dlp / downloading yt-dlp ... (${spec.url})`);
   try {
     await downloadFile(spec.url, destPath);
+    try {
+      await verifyYtDlpChecksum(destPath, spec.url, log);
+    } catch (checksumErr) {
+      // 校验和不通过：不留下可疑二进制，删掉刚下载的文件后再向上抛错
+      rmSync(destPath, { force: true });
+      throw checksumErr;
+    }
     ensureExecutable(destPath, platform);
     if (!verifyBinary(destPath, "--version")) {
       throw new SetupVideoError(

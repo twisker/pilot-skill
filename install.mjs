@@ -148,21 +148,29 @@ function realpathOrSelf(p) {
 
 /**
  * 递归同步 src → dest：拷贝 src 独有/更新的文件，删除 dest 中 src 没有的多余文件
- * （SYNC_EXCLUDES 内的顶层目录/文件永远跳过，保留用户已有的 node_modules/.env）。
- * 纯文件系统操作，无外部依赖（Windows 无 rsync）。
+ * （SYNC_EXCLUDES 内的目录/文件名永远跳过，保留用户已有的 node_modules/.env，
+ * 不管它们出现在哪一层——例如 tools/node_modules 是 npm install 在子目录里
+ * 产生的，并非仓库根）。
+ *
+ * 修复记录（Task 21 review Important）：早期实现只在 isRoot（递归第一层，即
+ * APP_DIR 顶层）生效排除，进入子目录递归后 isRoot 变 false，排除判断被跳过。
+ * 结果是 tools/node_modules（比根深一层）在「删除 dest 多余文件」那一步被当作
+ * 「src 没有所以是多余文件」直接 rmSync 删掉；而 --skip-deps 重跑 install 又
+ * 不会重新 npm install，用户会发现依赖凭空消失且无法自愈。现在排除判断按
+ * 「目录/文件基础名匹配」在任意深度都生效，isRoot 参数随之废弃。
  */
-export function syncDir(src, dest, { dryRun = false, excludes = SYNC_EXCLUDES, isRoot = true } = {}) {
+export function syncDir(src, dest, { dryRun = false, excludes = SYNC_EXCLUDES } = {}) {
   if (!dryRun) mkdirSync(dest, { recursive: true });
   const srcEntries = new Set();
 
   for (const entry of readdirSync(src, { withFileTypes: true })) {
-    if (isRoot && excludes.has(entry.name)) continue;
+    if (excludes.has(entry.name)) continue;
     srcEntries.add(entry.name);
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
 
     if (entry.isDirectory()) {
-      if (!dryRun) syncDir(srcPath, destPath, { dryRun, excludes, isRoot: false });
+      if (!dryRun) syncDir(srcPath, destPath, { dryRun, excludes });
     } else if (entry.isFile()) {
       if (!dryRun) {
         mkdirSync(path.dirname(destPath), { recursive: true });
@@ -173,7 +181,7 @@ export function syncDir(src, dest, { dryRun = false, excludes = SYNC_EXCLUDES, i
 
   if (existsSync(dest) && !dryRun) {
     for (const entry of readdirSync(dest, { withFileTypes: true })) {
-      if (isRoot && excludes.has(entry.name)) continue;
+      if (excludes.has(entry.name)) continue;
       if (!srcEntries.has(entry.name)) {
         rmSync(path.join(dest, entry.name), { recursive: true, force: true });
       }

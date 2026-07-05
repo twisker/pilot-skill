@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createTrip, readJson } from "../lib/workspace";
@@ -10,6 +10,7 @@ import {
   runPrep,
   checkDependencies,
   checkBinary,
+  defaultBinaries,
   resolveCookieArgs,
   main,
   CliError,
@@ -236,9 +237,17 @@ describe("video.ts: resolveCookieArgs", () => {
 // ---------------------------------------------------------------------------
 
 describe("video.ts: 依赖检查", () => {
-  it("checkBinary 对真实存在的 ffmpeg/ffprobe/yt-dlp 返回 true", () => {
+  it("checkBinary 对真实存在的 ffmpeg/ffprobe 返回 true", () => {
+    // ffmpeg/ffprobe 在 CI 三平台 runner（ubuntu/macos/windows-latest）与本机
+    // 开发环境均预装，可断言恒真；yt-dlp 不预装，见下方 skipIf 条件测试
+    // （Task 21 review 修复：避免 CI 必红）。
     expect(checkBinary("ffmpeg")).toBe(true);
     expect(checkBinary("ffprobe")).toBe(true);
+  });
+
+  // yt-dlp 只在本机/CI 已安装时才断言其可用；未安装时跳过而非制造假红灯——
+  // 依赖缺失路径已由下面「PATH 注入空目录」「DependencyError」等测试覆盖。
+  it.skipIf(!checkBinary("yt-dlp"))("checkBinary 对真实存在的 yt-dlp 返回 true（本机已安装时才跑）", () => {
     expect(checkBinary("yt-dlp")).toBe(true);
   });
 
@@ -283,6 +292,51 @@ describe("video.ts: 依赖检查", () => {
     // 用真实 yt-dlp + 故意错误的 ffmpeg/ffprobe 名字，metaOnly 应该完全不受影响成功。
     // （功能验证见下方 fake yt-dlp 集成测试）
     expect(true).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkBinary + defaultBinaries 绝对路径联测（Task 21 review Critical 修复回归）
+//
+// 一键安装（setup-video.ts）落点是 ~/.pilot/bin/ffmpeg 这样的绝对路径，
+// defaultBinaries() 探测到该文件后会返回绝对路径而非裸命令名 "ffmpeg"。
+// 修复前 checkBinary() 用整串路径去 VERSION_FLAG 表里查 —— 绝对路径必然
+// miss，fallback 到 "--version"，而 ffmpeg/ffprobe 只认单横线 "-version"，
+// 非零退出 → 一键安装后反而被误判为「缺依赖」。本测试用真实 ffmpeg 二进制
+// （拷贝进临时 PILOT_HOME/bin 目录，模拟一键安装落点）复现「安装后可用」
+// 这条链路，锁死修复。
+// ---------------------------------------------------------------------------
+
+describe("video.ts: checkBinary + defaultBinaries 绝对路径联测", () => {
+  let fakeHomeDir: string;
+
+  beforeEach(() => {
+    fakeHomeDir = mkdtempSync(path.join(tmpdir(), "pilot-checkbinary-home-"));
+    mkdirSync(path.join(fakeHomeDir, "bin"), { recursive: true });
+  });
+
+  afterEach(() => {
+    delete process.env.PILOT_HOME;
+    if (existsSync(fakeHomeDir)) rmSync(fakeHomeDir, { recursive: true });
+  });
+
+  it("defaultBinaries() 解析出的 ~/.pilot/bin/ffmpeg 绝对路径经 checkBinary 判定为可用", () => {
+    const whichCmd = process.platform === "win32" ? "where" : "which";
+    const realFfmpeg = execFileSync(whichCmd, ["ffmpeg"], { encoding: "utf-8" })
+      .split(/\r?\n/)[0]
+      .trim();
+    expect(realFfmpeg).toBeTruthy();
+
+    const exeSuffix = process.platform === "win32" ? ".exe" : "";
+    const destPath = path.join(fakeHomeDir, "bin", `ffmpeg${exeSuffix}`);
+    copyFileSync(realFfmpeg, destPath);
+    if (process.platform !== "win32") chmodSync(destPath, 0o755);
+
+    process.env.PILOT_HOME = fakeHomeDir;
+    const binaries = defaultBinaries();
+    // 先确认确实解析到了绝对路径（不是回退裸命令名）——否则下面的断言测不出回归
+    expect(binaries.ffmpeg).toBe(destPath);
+    expect(checkBinary(binaries.ffmpeg)).toBe(true);
   });
 });
 

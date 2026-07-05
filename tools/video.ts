@@ -65,7 +65,13 @@ export const DEFAULT_BINARIES: Binaries = { ytDlp: "yt-dlp", ffmpeg: "ffmpeg", f
 const VERSION_FLAG: Record<string, string> = { ffmpeg: "-version", ffprobe: "-version" };
 
 export function checkBinary(bin: string): boolean {
-  const flag = VERSION_FLAG[bin] ?? "--version";
+  // bin 可能是裸命令名（"ffmpeg"）也可能是 defaultBinaries() 解析出的绝对路径
+  // （如 ~/.pilot/bin/ffmpeg 或 Windows 下 .../ffmpeg.exe）。VERSION_FLAG 只按
+  // 二进制的「基础名」登记，因此必须先剥离目录与 .exe 后缀再查表——否则绝对
+  // 路径每次都查表 miss，fallback 到 "--version"，而 ffmpeg/ffprobe 只认单横线
+  // "-version"（非零退出），会把刚装好的依赖误判为缺失（Task 21 review 修复）。
+  const name = path.basename(bin).replace(/\.exe$/i, "");
+  const flag = VERSION_FLAG[name] ?? "--version";
   try {
     execFileSync(bin, [flag], { stdio: "ignore" });
     return true;

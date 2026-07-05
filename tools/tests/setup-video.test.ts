@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -7,6 +8,9 @@ import {
   ffmpegDownloadPlan,
   findFileRecursive,
   parseArgs,
+  parseSha256Sums,
+  sha256File,
+  ytDlpChecksumsUrl,
   DEPENDENCIES,
   SetupVideoError,
 } from "../setup-video";
@@ -83,6 +87,74 @@ describe("findFileRecursive", () => {
     dir = mkdtempSync(path.join(tmpdir(), "pilot-setup-video-find-"));
     mkdirSync(path.join(dir, "empty"), { recursive: true });
     expect(findFileRecursive(dir, "ffmpeg")).toBeNull();
+  });
+});
+
+describe("ytDlpChecksumsUrl", () => {
+  it("指向 yt-dlp latest release 同目录的 SHA2-256SUMS", () => {
+    expect(ytDlpChecksumsUrl()).toBe("https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS");
+  });
+});
+
+describe("parseSha256Sums（Task 21 review Minor 修复：yt-dlp 校验和）", () => {
+  it("解析标准 sha256sum 清单为 文件名 → 小写哈希 映射", () => {
+    const content = [
+      "495be29ff4d9d4e9be7eabdfef225221e5d5282e77f2f505abc6dca80349f3fd  yt-dlp",
+      "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b  yt-dlp_macos",
+      "6bbb3d314cde4febe36e5fa1d55462e29c974f63444e707871834f6d8cc210ae  yt-dlp_linux",
+    ].join("\n");
+    const sums = parseSha256Sums(content);
+    expect(sums.get("yt-dlp_macos")).toBe("498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b");
+    expect(sums.get("yt-dlp_linux")).toBe("6bbb3d314cde4febe36e5fa1d55462e29c974f63444e707871834f6d8cc210ae");
+    expect(sums.size).toBe(3);
+  });
+
+  it("兼容 binary mode 的 '*' 前缀", () => {
+    const content = "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b *yt-dlp_macos";
+    expect(parseSha256Sums(content).get("yt-dlp_macos")).toBe(
+      "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b",
+    );
+  });
+
+  it("大写十六进制哈希归一化为小写", () => {
+    const content = "498BD0DAE17855C599D371D68EC5BAFC439A9D8640E838BE25C765A9792F261B  yt-dlp_macos";
+    expect(parseSha256Sums(content).get("yt-dlp_macos")).toBe(
+      "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b",
+    );
+  });
+
+  it("空行/格式不符的行被忽略，不抛错", () => {
+    const content = "\n\nnot-a-valid-line\n498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b  yt-dlp_macos\n";
+    const sums = parseSha256Sums(content);
+    expect(sums.size).toBe(1);
+    expect(sums.has("yt-dlp_macos")).toBe(true);
+  });
+
+  it("空字符串返回空映射", () => {
+    expect(parseSha256Sums("").size).toBe(0);
+  });
+});
+
+describe("sha256File", () => {
+  let dir: string;
+
+  afterEach(() => {
+    if (existsSync(dir)) rmSync(dir, { recursive: true });
+  });
+
+  it("计算出的哈希与 node:crypto 直接计算一致", async () => {
+    dir = mkdtempSync(path.join(tmpdir(), "pilot-sha256file-"));
+    const filePath = path.join(dir, "sample.bin");
+    const content = "PILOT setup-video 校验和测试内容 / checksum test content\n".repeat(100);
+    writeFileSync(filePath, content);
+
+    const expected = createHash("sha256").update(content).digest("hex");
+    await expect(sha256File(filePath)).resolves.toBe(expected);
+  });
+
+  it("对不存在的文件拒绝（reject）", async () => {
+    dir = mkdtempSync(path.join(tmpdir(), "pilot-sha256file-"));
+    await expect(sha256File(path.join(dir, "does-not-exist.bin"))).rejects.toThrow();
   });
 });
 

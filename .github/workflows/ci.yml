@@ -66,3 +66,19 @@ jobs:
           test -e "$SKILLS_DIR/pilot/SKILL.md"
           # 重跑一次验证幂等（symlink/junction 重新注册不报错）
           PILOT_APP_DIR="$APP_DIR" CLAUDE_SKILLS_DIR="$SKILLS_DIR" node install.mjs --skip-deps --yes
+
+      - name: install.mjs 冒烟测试（syncDir 任意深度保全 node_modules，Task 21 review 回归检查）
+        # 早期 syncDir 只在仓库根这一层排除 node_modules/.env/.git，进入子目录
+        # 递归后排除失效——tools/node_modules（比根深一层，由 npm install 产生，
+        # checkout 出的源仓库里没有）会被当成"src 没有的多余文件"直接删掉，
+        # 且 --skip-deps 重跑不会重新 npm install 来恢复它。这里预置一个假的
+        # tools/node_modules 文件模拟已装好依赖的部署，重跑 install 后断言仍在。
+        run: |
+          set -euo pipefail
+          APP_DIR="$(mktemp -d)/app"
+          SKILLS_DIR="$(mktemp -d)/skills"
+          PILOT_APP_DIR="$APP_DIR" CLAUDE_SKILLS_DIR="$SKILLS_DIR" node install.mjs --skip-deps --yes
+          mkdir -p "$APP_DIR/tools/node_modules/some-pkg"
+          echo "fake" > "$APP_DIR/tools/node_modules/some-pkg/index.js"
+          PILOT_APP_DIR="$APP_DIR" CLAUDE_SKILLS_DIR="$SKILLS_DIR" node install.mjs --skip-deps --yes
+          test -f "$APP_DIR/tools/node_modules/some-pkg/index.js"
