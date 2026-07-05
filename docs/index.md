@@ -2,7 +2,7 @@
 
 [中文 ↓](#中文) | [English ↓](#english)
 
-Repo home & install instructions: [github.com/twisker/pilot-skill](https://github.com/twisker/pilot-skill)
+Repo home & install instructions: [github.com/twisker/pilot-skill](https://github.com/twisker/pilot-skill) — [README (English)](https://github.com/twisker/pilot-skill/blob/main/README.md) · [README（中文）](https://github.com/twisker/pilot-skill/blob/main/README.zh.md)
 
 ---
 

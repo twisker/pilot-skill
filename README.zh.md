@@ -1,4 +1,4 @@
-[English](README.md) | **中文**
+[English](README.md) | **中文** | 📖 [文档站](https://twisker.github.io/pilot-skill/)
 
 [![CI](https://github.com/twisker/pilot-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/twisker/pilot-skill/actions/workflows/ci.yml)
 
