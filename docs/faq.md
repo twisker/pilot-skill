@@ -60,20 +60,30 @@ cd ~/.pilot/app && git pull && ./install.sh
 ### 如何卸载？
 
 ```bash
-rm ~/.claude/skills/pilot          # 取消 skill 注册（是个 symlink）
+rm ~/.claude/skills/pilot          # 取消 skill 注册（是个 symlink；Windows 上可能是目录 junction 或整份复制，看安装时的日志）
 rm -rf ~/.pilot/app                # 删除程序
 rm -rf ~/.pilot                    # （可选）连同所有行程数据与 cookie 一起删除
 ```
 
+Windows（PowerShell）对应命令：`Remove-Item $env:USERPROFILE\.claude\skills\pilot -Recurse -Force` / `Remove-Item $env:USERPROFILE\.pilot -Recurse -Force`。
+
 ### 视频游记功能提示缺 yt-dlp / ffmpeg？
 
-视频理解是可选功能，需要：`brew install yt-dlp ffmpeg`（macOS）。不装则 PILOT 自动跳过视频轮，只用文字与图集素材。
+视频理解是可选功能，一键装：
+
+```bash
+cd ~/.pilot/app/tools && npx tsx setup-video.ts install --yes
+```
+
+跨平台（macOS/Windows/Linux）下载官方静态二进制到 `~/.pilot/bin/`，不需要 brew / winget / apt，也不需要预装 python。已经装过且能跑会自动跳过；`--force` 强制重下。不装则 PILOT 自动跳过视频轮，只用文字与图集素材，不影响主链路。
+
+macOS 上如果提示"无法验证开发者"（Gatekeeper 拦截未签名二进制），按报错信息执行一次 `xattr -d com.apple.quarantine <二进制路径>` 再重试。
 
 ### /pilot 没有触发？
 
-- 确认 symlink 存在：`ls -l ~/.claude/skills/pilot` 应指向 `~/.pilot/app/skill`
+- 确认 skill 已注册：`ls -l ~/.claude/skills/pilot`（Windows: `dir %USERPROFILE%\.claude\skills\pilot`）应指向/包含 `~/.pilot/app/skill` 的内容
 - 需要**新开**一个 Claude Code 会话（skill 列表在会话启动时加载）
-- 重跑 `~/.pilot/app/install.sh` 可修复注册
+- 重跑安装脚本可修复注册：macOS/Linux `~/.pilot/app/install.sh`；Windows `node %USERPROFILE%\.pilot\app\install.mjs`
 
 ## 数据与隐私
 

@@ -32,10 +32,12 @@ PILOT 不是「让 AI 凭空编一份行程」。它的主链路是：
 | [Claude Code](https://claude.com/claude-code) | 必需（PILOT 是 Claude Code Skill） |
 | Node.js | >= 20 |
 | git | 任意近期版本 |
-| yt-dlp + ffmpeg | 可选，仅视频游记理解需要（`brew install yt-dlp ffmpeg`） |
-| 操作系统 | macOS / Linux（Windows 建议 WSL） |
+| yt-dlp + ffmpeg | 可选，仅视频游记理解需要——**无需自己装**，安装时选「是」或事后 `npx tsx tools/setup-video.ts install --yes` 一键搞定（跨平台静态二进制，见下方「视频依赖一键安装」） |
+| 操作系统 | **macOS / Windows / Linux 均支持**（Windows 原生支持，不需要 WSL） |
 
 ## 三步安装
+
+**macOS / Linux：**
 
 ```bash
 # 1. clone 到固定安装位（推荐；clone 到别处也行，install.sh 会自动复制过去）
@@ -48,10 +50,33 @@ cd ~/.pilot/app && ./install.sh
 #    /pilot 十一去川西自驾一周，摄影为主
 ```
 
+**Windows（原生 PowerShell / cmd，不需要 WSL / Git Bash）：**
+
+```powershell
+# 1. clone 到固定安装位
+git clone https://github.com/twisker/pilot-skill.git $env:USERPROFILE\.pilot\app
+
+# 2. 运行安装脚本（同一份 install.mjs，跨平台逻辑一致；Windows 用 node 直接跑）
+cd $env:USERPROFILE\.pilot\app
+node install.mjs
+
+# 3. 新开一个 Claude Code 会话，开聊
+#    /pilot 十一去川西自驾一周，摄影为主
+```
+
+安装脚本会询问是否顺带安装视频依赖（yt-dlp/ffmpeg），选「是」或者用 `--with-video --yes` 免交互一键装好；跳过也不影响文字游记主链路，随时可以事后补装（见下）。
+
 安装后可选配置（详见 [docs/](docs/index.md)）：
 
 - **天地图 key**（地图视图底图）：在 `~/.pilot/app/.env` 写入 `TIANDITU_KEY=<key>`，[免费申请](https://console.tianditu.gov.cn/)（浏览器端类型）
 - **站点 cookie**（大幅提升抓取成功率）：`npx tsx ~/.pilot/app/tools/cookies.ts setup`
+- **视频依赖一键安装**（B 站视频游记理解用，跳过也不影响主链路）：
+
+  ```bash
+  cd ~/.pilot/app/tools && npx tsx setup-video.ts install --yes
+  ```
+
+  自动下载 yt-dlp + ffmpeg/ffprobe 官方静态二进制到 `~/.pilot/bin/`（macOS/Windows/Linux 都是官方发行的单文件构建，不需要 brew / winget / apt，也不需要预装 python）。已经装过且能跑就直接跳过；要强制重下加 `--force`。macOS 上如果二进制被 Gatekeeper 拦下（提示"无法验证开发者"），按报错里给的 `xattr -d com.apple.quarantine <路径>` 处理一次即可。
 
 ## 快速上手：一段示例对话
 

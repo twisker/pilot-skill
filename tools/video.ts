@@ -8,6 +8,7 @@ import { tripDir, writeJson } from "./lib/workspace";
 import { cookieFilePath } from "./lib/sites/cookies";
 import { probeDuration, extractFrames } from "./lib/video-frames";
 import { storageStateToNetscape, type StorageState } from "./lib/cookie-convert";
+import { resolveDefaultBinaries, type VideoBinaries } from "./lib/video-deps";
 
 const execFileAsync = promisify(execFile);
 
@@ -41,23 +42,23 @@ export class DependencyError extends CliError {
 const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
 const YT_DLP_MAX_BUFFER = 20 * 1024 * 1024;
 
-const BREW_PACKAGE: Record<string, string> = {
-  "yt-dlp": "yt-dlp",
-  ffmpeg: "ffmpeg",
-  ffprobe: "ffmpeg", // ffprobe 随 ffmpeg 包一起装，没有独立 brew 包
-};
-
-function installHintFor(missing: string[]): string {
-  const packages = Array.from(new Set(missing.map((m) => BREW_PACKAGE[m] ?? m)));
-  return `brew install ${packages.join(" ")}`;
+// 一键安装指引：跨平台静态二进制下载（Task 21），取代旧版 "brew install" 提示
+// （brew 只在 macOS 有意义，Windows/Linux 用户会被误导）。
+function installHintFor(_missing: string[]): string {
+  return "npx tsx tools/setup-video.ts install --yes（一键下载 yt-dlp/ffmpeg 静态二进制到 ~/.pilot/bin，跨平台 macOS/Linux/Windows）";
 }
 
-export interface Binaries {
-  ytDlp: string;
-  ffmpeg: string;
-  ffprobe: string;
+export type Binaries = VideoBinaries;
+
+/**
+ * 依赖探测顺序：~/.pilot/bin/<name>[.exe] 优先（setup-video.ts 落点）→ 回退裸名走 PATH。
+ * 每次调用都重新解析（不缓存），保证「本次会话中途装好依赖」也能生效。
+ */
+export function defaultBinaries(): Binaries {
+  return resolveDefaultBinaries();
 }
 
+/** @deprecated 用 defaultBinaries()；保留是为了兼容旧引用，值为函数调用时刻的一次性快照 */
 export const DEFAULT_BINARIES: Binaries = { ytDlp: "yt-dlp", ffmpeg: "ffmpeg", ffprobe: "ffprobe" };
 
 // ffmpeg/ffprobe 的版本探测参数是单横线 -version（不是 --version）
@@ -197,7 +198,7 @@ export interface PrepOptions {
 
 export async function runPrep(tripId: string, url: string, opts: PrepOptions = {}): Promise<Manifest> {
   const dir = tripDir(tripId); // trip 不存在会抛出，属于 trip 级错误
-  const binaries = opts.binaries ?? DEFAULT_BINARIES;
+  const binaries = opts.binaries ?? defaultBinaries();
   const hash = sha1(url);
   const videoRelDir = `raw/video-${hash}`;
   const videoDir = path.join(dir, videoRelDir);

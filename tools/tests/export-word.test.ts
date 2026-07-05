@@ -17,6 +17,13 @@ import { runWord, main, CliError } from "../export/word";
 // 系统自带 `unzip` CLI（macOS/Linux 均预装，`tests/video.test.ts` 已有用
 // execFileSync 调用外部二进制的先例）足够胜任「列出压缩包内文件名」与
 // 「提取指定条目内容」两件事，比引入新依赖或手撸 zip parser 更省成本。
+//
+// Windows 兼容（Task 21）：Windows 默认不带 `unzip` CLI，用到 extractZipEntry /
+// `unzip -l` 的用例用 it.skipIf(win32) 跳过；不依赖 unzip 的用例（docx 文件存在
+// 性 + PK 头 magic number 校验、main/CLI 参数校验等）三平台都跑。zip 内容深校验
+// 的覆盖率在 win32 job 上因此比 ubuntu/macos job 弱一些——这是记录在案的取舍，
+// 由 CI matrix 的 ubuntu-latest/macos-latest job 承担完整覆盖
+// （.github/workflows/ci.yml），非疏漏。
 // ---------------------------------------------------------------------------
 
 let testPilotHome: string;
@@ -170,7 +177,7 @@ describe("runWord", () => {
     expect(head.equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))).toBe(true);
   });
 
-  it("① zip 内含 word/document.xml", async () => {
+  it.skipIf(process.platform === "win32")("① zip 内含 word/document.xml", async () => {
     setupFixtureTrip();
     const result = await runWord(tripId);
 
@@ -178,7 +185,7 @@ describe("runWord", () => {
     expect(listing).toContain("word/document.xml");
   });
 
-  it("② document.xml 含首日日期与目的地字符串", async () => {
+  it.skipIf(process.platform === "win32")("② document.xml 含首日日期与目的地字符串", async () => {
     setupFixtureTrip();
     const result = await runWord(tripId);
 
@@ -187,7 +194,7 @@ describe("runWord", () => {
     expect(xml).toContain("新疆北疆");
   });
 
-  it("④ 章节数抽查：document.xml 中 Heading 样式引用计数 ≥9", async () => {
+  it.skipIf(process.platform === "win32")("④ 章节数抽查：document.xml 中 Heading 样式引用计数 ≥9", async () => {
     setupFixtureTrip();
     const result = await runWord(tripId);
 
@@ -196,7 +203,7 @@ describe("runWord", () => {
     expect(headingMatches.length).toBeGreaterThanOrEqual(9);
   });
 
-  it("封面/预算/装备/应急关键内容均出现在正文中", async () => {
+  it.skipIf(process.platform === "win32")("封面/预算/装备/应急关键内容均出现在正文中", async () => {
     setupFixtureTrip();
     const result = await runWord(tripId);
 
@@ -208,7 +215,7 @@ describe("runWord", () => {
     expect(xml).toContain("f10180a5bf08"); // 附录：参考游记
   });
 
-  it("Task 19：四段主结构标题均出现，原住宿/应急内容仍保留在对应段落中", async () => {
+  it.skipIf(process.platform === "win32")("Task 19：四段主结构标题均出现，原住宿/应急内容仍保留在对应段落中", async () => {
     setupFixtureTrip();
     const result = await runWord(tripId);
 
@@ -227,7 +234,7 @@ describe("runWord", () => {
     expect(xml).toContain("边防证");
   });
 
-  it("Task 19：消费流水模板含空白手写表格与核算小表（含门票/购物等类别）", async () => {
+  it.skipIf(process.platform === "win32")("Task 19：消费流水模板含空白手写表格与核算小表（含门票/购物等类别）", async () => {
     setupFixtureTrip();
     const result = await runWord(tripId);
 

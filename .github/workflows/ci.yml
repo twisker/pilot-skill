@@ -1,0 +1,68 @@
+name: CI
+
+# Task 21：Windows 支持——本仓开发机是 macOS，无法本地实测 win32 分支
+# （install.mjs 的 junction 注册、setup-video.ts 的 PowerShell Expand-Archive
+# 解压等）。这条三平台 matrix 是这些分支唯一的真实执行验证通道；本地/静态
+# 审计只能覆盖到"代码逻辑看起来对"，这里覆盖"代码在真实 Windows 上真的能跑"。
+
+on:
+  push:
+  pull_request:
+
+defaults:
+  run:
+    # windows-latest runner 自带 Git for Windows，PATH 上有 bash（Git Bash）。
+    # 三平台统一用 bash 写 step，避免 pwsh/cmd 语法分叉，也让 mktemp -d 等
+    # 用法在 Windows 上同样成立。
+    shell: bash
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: tools 依赖安装
+        working-directory: tools
+        run: npm ci
+
+      - name: playwright chromium（抓取兜底 / PDF 导出用）
+        working-directory: tools
+        run: npx playwright install chromium --with-deps
+
+      - name: tsc 类型检查
+        working-directory: tools
+        run: npx tsc --noEmit
+
+      - name: vitest（含 Task 21 新增 video-deps / setup-video / open-url 单测）
+        working-directory: tools
+        run: npx vitest run
+
+      - name: install.mjs 冒烟测试（--dry-run）
+        run: |
+          set -euo pipefail
+          APP_DIR="$(mktemp -d)/app"
+          SKILLS_DIR="$(mktemp -d)/skills"
+          PILOT_APP_DIR="$APP_DIR" CLAUDE_SKILLS_DIR="$SKILLS_DIR" node install.mjs --dry-run --with-video
+          # dry-run 不应该落任何文件
+          if [ -e "$APP_DIR" ]; then echo "dry-run 不应创建 APP_DIR" >&2; exit 1; fi
+
+      - name: install.mjs 冒烟测试（真实部署 + skill 注册，跳过 npm/playwright 重装）
+        run: |
+          set -euo pipefail
+          APP_DIR="$(mktemp -d)/app"
+          SKILLS_DIR="$(mktemp -d)/skills"
+          PILOT_APP_DIR="$APP_DIR" CLAUDE_SKILLS_DIR="$SKILLS_DIR" node install.mjs --skip-deps --yes
+          test -f "$APP_DIR/skill/SKILL.md"
+          test -f "$APP_DIR/VERSION"
+          test -e "$SKILLS_DIR/pilot/SKILL.md"
+          # 重跑一次验证幂等（symlink/junction 重新注册不报错）
+          PILOT_APP_DIR="$APP_DIR" CLAUDE_SKILLS_DIR="$SKILLS_DIR" node install.mjs --skip-deps --yes

@@ -6,13 +6,23 @@
 
 - 已安装 [Claude Code](https://claude.com/claude-code) 并能正常使用
 - Node.js >= 20（`node -v` 确认）
-- macOS / Linux（Windows 建议 WSL）
+- **macOS / Windows / Linux 均可**（Windows 原生支持，不需要 WSL）
 
 ## 1. 安装
+
+**macOS / Linux：**
 
 ```bash
 git clone https://github.com/twisker/pilot-skill.git ~/.pilot/app
 cd ~/.pilot/app && ./install.sh
+```
+
+**Windows（PowerShell / cmd）：**
+
+```powershell
+git clone https://github.com/twisker/pilot-skill.git $env:USERPROFILE\.pilot\app
+cd $env:USERPROFILE\.pilot\app
+node install.mjs
 ```
 
 预期输出（节选）：

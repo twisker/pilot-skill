@@ -256,7 +256,7 @@ describe("video.ts: 依赖检查", () => {
     }
   });
 
-  it("runPrep 在依赖缺失时抛 DependencyError，携带 missing 与 brew 安装指引", async () => {
+  it("runPrep 在依赖缺失时抛 DependencyError，携带 missing 与跨平台安装指引", async () => {
     await expect(
       runPrep(tripId, "https://example.com/video", {
         binaries: { ytDlp: "nonexistent-yt-dlp-xyz", ffmpeg: "ffmpeg", ffprobe: "ffprobe" },
@@ -272,7 +272,7 @@ describe("video.ts: 依赖检查", () => {
       expect(err).toBeInstanceOf(DependencyError);
       const depErr = err as DependencyError;
       expect(depErr.missing).toContain("nonexistent-yt-dlp-xyz");
-      expect(depErr.installHint).toContain("brew install");
+      expect(depErr.installHint).toContain("setup-video.ts");
     }
   });
 
@@ -290,8 +290,13 @@ describe("video.ts: 依赖检查", () => {
 // fake yt-dlp stub —— 不打真实网站，验证 CLI 契约与 manifest 结构
 // ---------------------------------------------------------------------------
 
+// Windows 无 shebang 支持，直接执行无扩展名文件会失败；改写一个 .js + .cmd
+// 包装（.cmd 由 Node child_process 特殊处理，无需 shell:true 也能跑），
+// PATH 目录下 PATHEXT 解析裸命令名"yt-dlp"时也能命中 yt-dlp.cmd。
+// darwin/linux 保持原有 shebang + chmod +x 方案不变。
+// 注：本仓库开发机为 macOS，win32 分支未在真实 Windows 上跑过，随 CI windows-latest
+// job（.github/workflows/ci.yml）验证。
 function writeFakeYtDlp(dir: string): string {
-  const scriptPath = path.join(dir, "yt-dlp");
   const script = `#!/usr/bin/env node
 const fs = require("fs");
 const argv = process.argv.slice(2);
@@ -322,6 +327,14 @@ if (argv.includes("--print-json")) {
 process.stderr.write("fake-yt-dlp: unknown invocation\\n");
 process.exit(1);
 `;
+  if (process.platform === "win32") {
+    const jsPath = path.join(dir, "yt-dlp.js");
+    writeFileSync(jsPath, script);
+    const cmdPath = path.join(dir, "yt-dlp.cmd");
+    writeFileSync(cmdPath, `@echo off\r\nnode "${jsPath}" %*\r\n`);
+    return cmdPath;
+  }
+  const scriptPath = path.join(dir, "yt-dlp");
   writeFileSync(scriptPath, script, { mode: 0o755 });
   return scriptPath;
 }
@@ -585,7 +598,8 @@ describe("video.ts CLI 端到端：main() 通过 PATH 解析到 fake yt-dlp（--
     writeFakeYtDlp(stubDir);
     process.env.FAKE_YTDLP_META = JSON.stringify({ title: "CLI 端到端测试", description: "CLI 简介" });
     originalPath = process.env.PATH;
-    process.env.PATH = `${stubDir}:${originalPath}`;
+    // path.delimiter：unix ":" / win32 ";"（原硬编码 ":" 在 Windows 下会拼出非法 PATH）
+    process.env.PATH = `${stubDir}${path.delimiter}${originalPath}`;
   });
 
   afterEach(() => {
