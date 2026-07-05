@@ -1,6 +1,6 @@
 # Configuration Reference: config/pilot.json
 
-[中文](../zh/guide-config.md) | **English**
+[中文](https://twisker.github.io/pilot-skill/zh/guide-config.html) | **English**
 
 Config file location: `~/.pilot/app/config/pilot.json`. Tools resolve it relative to their own location; you can override with the `PILOT_CONFIG=<absolute-path>` environment variable (this applies to `search.ts` / `distill.ts` / `video.ts`).
 

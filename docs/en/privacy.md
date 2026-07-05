@@ -1,6 +1,6 @@
 # Privacy Statement (Anonymous Statistics)
 
-[中文](../zh/privacy.md) | **English**
+[中文](https://twisker.github.io/pilot-skill/zh/privacy.html) | **English**
 
 PILOT ships with a set of **anonymous usage statistics** built to answer one question: are the recommendations and the product any good, and where do they fall short. This page spells out exactly what is collected, what is never collected, why, and how to turn it all off with one switch. There is a single governing principle: **statistics describe "what kind of thing happened," never "what you said or who you are."**
 
@@ -27,7 +27,7 @@ The whitelist is enforced in code (`tools/lib/telemetry.ts`): events and fields 
 - **Conversation content**: nothing you say to PILOT, no itinerary contents, no reasons you gave for declining a recommendation;
 - **Identity**: no names, no email addresses, no accounts, no device fingerprints;
 - **Precise location**: no GPS or precise coordinates — destinations are city/region-level strings only;
-- **Cookies and login state**: `~/.pilot/cookies/` is used on your machine only and never uploaded (see the [cookie guide](guide-cookies.md));
+- **Cookies and login state**: `~/.pilot/cookies/` is used on your machine only and never uploaded (see the [cookie guide](https://twisker.github.io/pilot-skill/en/guide-cookies.html));
 - **Raw IP addresses**: client-side statistics contain no IP at all; once the server side is enabled, the link service keeps **only a salted hash** of visitor IPs (sha256 with a salt, truncated to 16 hex characters) — the raw IP value is never stored anywhere, and if no salt is configured, not even the hash is recorded.
 
 ## Why it is collected

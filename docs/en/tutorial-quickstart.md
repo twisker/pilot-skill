@@ -1,6 +1,6 @@
 # Quickstart Tutorial: From Install to Your First Itinerary Book
 
-[中文](../zh/tutorial-quickstart.md) | **English**
+[中文](https://twisker.github.io/pilot-skill/zh/tutorial-quickstart.html) | **English**
 
 This tutorial walks through PILOT's main flow end to end: **install → your first trip → conversational editing → export a three-format itinerary book.** The whole thing takes about 30–60 minutes (most of it is PILOT searching and scraping in the background — you just answer a few questions and make some choices along the way).
 
@@ -103,7 +103,7 @@ Coverage report for this round:
 Travelogues available for structuring: 13.
 ```
 
-> Some sources getting blocked is **normal, not a bug**. When source material is thin, PILOT will say so plainly — "reference material is a bit sparse this round, itinerary quality will suffer" — and give you three options: continue anyway / export cookies and retry / search again with different terms. See the [cookie guide](guide-cookies.md).
+> Some sources getting blocked is **normal, not a bug**. When source material is thin, PILOT will say so plainly — "reference material is a bit sparse this round, itinerary quality will suffer" — and give you three options: continue anyway / export cookies and retry / search again with different terms. See the [cookie guide](https://twisker.github.io/pilot-skill/en/guide-cookies.html).
 
 PILOT then shows the top 5 curated travelogues (title + summary + tags + score + day count + source link) and recommends one as the template. You can pick a different one.
 
@@ -151,7 +151,7 @@ The three formats carry the same content with different strengths — PDF for pr
 |-----|-------|------|
 | ![PDF itinerary book](../images/export-pdf.png) | ![Excel itinerary book](../images/export-excel.png) | ![Word itinerary book](../images/export-word.png) |
 
-See the [export guide](guide-export.md) for the four-section structure and how to use the template sheets.
+See the [export guide](https://twisker.github.io/pilot-skill/en/guide-export.html) for the four-section structure and how to use the template sheets.
 
 ## 7. Pause & Resume
 
@@ -167,6 +167,6 @@ All past trips stay in `~/.pilot/workspace/` — starting a new trip never delet
 
 ## What's Next
 
-- [Cookie export guide](guide-cookies.md) — the first thing to do if scraping success rate is low
-- [Configuration reference](guide-config.md) — tune search sources, curation count, map basemap
-- [FAQ](faq.md) — common questions
+- [Cookie export guide](https://twisker.github.io/pilot-skill/en/guide-cookies.html) — the first thing to do if scraping success rate is low
+- [Configuration reference](https://twisker.github.io/pilot-skill/en/guide-config.html) — tune search sources, curation count, map basemap
+- [FAQ](https://twisker.github.io/pilot-skill/en/faq.html) — common questions

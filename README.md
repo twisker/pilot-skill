@@ -30,7 +30,7 @@ Every day of the itinerary traces back to a specific day in a specific real trav
 - **Map companion**: a local read-only page (timeline / map / reference-travelogue card wall) that auto-refreshes in the browser (via SSE) whenever the itinerary file changes, using a Tianditu basemap; the map links every located stop into one continuous route in order (within a day and across days, color-coded per day, straight-line segments)
 - **Three-format itinerary book**: Excel (4 sheets, with cost formulas and an expense-log template) / PDF / Word, structured to match how experienced travelers actually use a paper itinerary book on the road
 - **Fully local**: all data is written to `~/.pilot/workspace/`, cookies stay on your machine only, zero cloud dependency
-- **Transparent anonymous statistics with a one-switch opt-out**: event counts and coarse destinations only — never conversation content or identity, and nothing is uploaded by default (`PILOT_TELEMETRY=off` disables it globally) — see the [privacy statement](docs/en/privacy.md)
+- **Transparent anonymous statistics with a one-switch opt-out**: event counts and coarse destinations only — never conversation content or identity, and nothing is uploaded by default (`PILOT_TELEMETRY=off` disables it globally) — see the [privacy statement](https://twisker.github.io/pilot-skill/en/privacy.html)
 
 ## Screenshots
 
@@ -95,7 +95,7 @@ node install.mjs
 
 The installer will ask whether to also install the video dependencies (yt-dlp/ffmpeg) — answer "yes," or use `--with-video --yes` for a non-interactive one-shot install. Skipping it doesn't affect the main text-travelogue flow, and you can always add it later (see below).
 
-Optional post-install configuration (see [docs/](docs/index.md) for details):
+Optional post-install configuration (see [docs/](https://twisker.github.io/pilot-skill/) for details):
 
 - **Tianditu key** (map basemap): put `TIANDITU_KEY=<key>` in `~/.pilot/app/.env`, [apply for free](https://console.tianditu.gov.cn/) (choose the "browser-side" app type)
 - **Site cookies** (significantly improves scraping success rate): `npx tsx ~/.pilot/app/tools/cookies.ts setup`
@@ -143,7 +143,7 @@ PILOT: (day-by-day refinement -> coordinate verification -> final conflict
       ├── itinerary.pdf  ├── itinerary.xlsx  └── itinerary.docx
 ```
 
-Full walkthrough: [docs/en/tutorial-quickstart.md](docs/en/tutorial-quickstart.md).
+Full walkthrough: [docs/en/tutorial-quickstart.md](https://twisker.github.io/pilot-skill/en/tutorial-quickstart.html).
 
 ## Documentation
 
@@ -151,26 +151,26 @@ Full walkthrough: [docs/en/tutorial-quickstart.md](docs/en/tutorial-quickstart.m
 
 | Doc | Contents |
 |-----|----------|
-| [docs/index.md](docs/index.md) | Documentation index (bilingual entry point) |
-| [docs/en/tutorial-quickstart.md](docs/en/tutorial-quickstart.md) | Full walkthrough: install → first trip → edit → export |
-| [docs/en/guide-cookies.md](docs/en/guide-cookies.md) | Full cookie-export flow and per-site notes |
-| [docs/en/guide-config.md](docs/en/guide-config.md) | Full field reference for `config/pilot.json` |
-| [docs/en/guide-export.md](docs/en/guide-export.md) | The itinerary book's four-section structure and template sheets |
-| [docs/en/faq.md](docs/en/faq.md) | Frequently asked questions |
-| [docs/en/privacy.md](docs/en/privacy.md) | Privacy statement: what the anonymous statistics collect / never collect / how to opt out |
+| [docs/index.md](https://twisker.github.io/pilot-skill/) | Documentation index (bilingual entry point) |
+| [docs/en/tutorial-quickstart.md](https://twisker.github.io/pilot-skill/en/tutorial-quickstart.html) | Full walkthrough: install → first trip → edit → export |
+| [docs/en/guide-cookies.md](https://twisker.github.io/pilot-skill/en/guide-cookies.html) | Full cookie-export flow and per-site notes |
+| [docs/en/guide-config.md](https://twisker.github.io/pilot-skill/en/guide-config.html) | Full field reference for `config/pilot.json` |
+| [docs/en/guide-export.md](https://twisker.github.io/pilot-skill/en/guide-export.html) | The itinerary book's four-section structure and template sheets |
+| [docs/en/faq.md](https://twisker.github.io/pilot-skill/en/faq.html) | Frequently asked questions |
+| [docs/en/privacy.md](https://twisker.github.io/pilot-skill/en/privacy.html) | Privacy statement: what the anonymous statistics collect / never collect / how to opt out |
 
 中文文档在 [docs/zh/](docs/zh/)（与英文版内容一一对应，非摘要翻译）。
 
 ## FAQ (at a glance)
 
 **Why do I need cookies?**
-Sites like Mafengwo and Xiaohongshu apply anti-bot measures to unauthenticated access (CAPTCHAs, login walls). PILOT provides a guided tool to export cookies after you log in through a local browser window — **saved only on your machine at `~/.pilot/cookies/`, never uploaded to any server**. PILOT works without exporting cookies too, just with a lower fetch success rate on those sources — it reports this honestly and degrades gracefully. See [docs/en/guide-cookies.md](docs/en/guide-cookies.md).
+Sites like Mafengwo and Xiaohongshu apply anti-bot measures to unauthenticated access (CAPTCHAs, login walls). PILOT provides a guided tool to export cookies after you log in through a local browser window — **saved only on your machine at `~/.pilot/cookies/`, never uploaded to any server**. PILOT works without exporting cookies too, just with a lower fetch success rate on those sources — it reports this honestly and degrades gracefully. See [docs/en/guide-cookies.md](https://twisker.github.io/pilot-skill/en/guide-cookies.html).
 
 **How do I get a Tianditu key?**
 Sign up for free at the [Tianditu console](https://console.tianditu.gov.cn/) and create a "browser-side" app to get a key. Without a key, the map view shows a setup prompt and the main itinerary-design flow is unaffected.
 
 **What if fetching fails?**
-Some sources getting blocked by anti-bot measures is normal. PILOT's fallback chain: WebSearch → WebFetch direct read → playwright fallback → summary-only supplement → honest coverage report with options (continue / export cookies and retry / rephrase and search again) — it never pretends it had enough material. See [docs/en/faq.md](docs/en/faq.md).
+Some sources getting blocked by anti-bot measures is normal. PILOT's fallback chain: WebSearch → WebFetch direct read → playwright fallback → summary-only supplement → honest coverage report with options (continue / export cookies and retry / rephrase and search again) — it never pretends it had enough material. See [docs/en/faq.md](https://twisker.github.io/pilot-skill/en/faq.html).
 
 ## License
 

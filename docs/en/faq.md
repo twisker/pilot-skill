@@ -1,6 +1,6 @@
 # FAQ
 
-[中文](../zh/faq.md) | **English**
+[中文](https://twisker.github.io/pilot-skill/zh/faq.html) | **English**
 
 ## Fetching & material
 
@@ -16,7 +16,7 @@ WebSearch (free) -> WebFetch direct read -> playwright fallback scrape
 When material is thin, PILOT gives you three options and lets you decide:
 
 1. **Continue anyway**: use what's available; low-confidence days are flagged
-2. **Export cookies and retry**: see the [cookie guide](guide-cookies.md) — the single biggest lever for improving success rate
+2. **Export cookies and retry**: see the [cookie guide](https://twisker.github.io/pilot-skill/en/guide-cookies.html) — the single biggest lever for improving success rate
 3. **Switch sources or rephrase**: adjust the destination granularity or wording and search again
 
 ### What does "summary-only supplement" mean in the coverage report?
@@ -25,7 +25,7 @@ For entries where the full-text fetch failed but the search snippet has enough i
 
 ### Why do Ctrip guides / Tuchong keep showing up near the top of the coverage report?
 
-The `preferred_domains` setting in the config ranks domains with empirically higher fetch success rates higher (see the [configuration reference](guide-config.md)) — this is expected behavior.
+The `preferred_domains` setting in the config ranks domains with empirically higher fetch success rates higher (see the [configuration reference](https://twisker.github.io/pilot-skill/en/guide-config.html)) — this is expected behavior.
 
 ## Map
 
@@ -100,7 +100,7 @@ No. PILOT's toolchain has zero cloud dependency: search and scraping run on your
 
 ### Are cookies safe?
 
-Cookies are saved only under `~/.pilot/cookies/` and never uploaded; we recommend using a secondary account and deleting them whenever you like. See the commitment section in the [cookie guide](guide-cookies.md).
+Cookies are saved only under `~/.pilot/cookies/` and never uploaded; we recommend using a secondary account and deleting them whenever you like. See the commitment section in the [cookie guide](https://twisker.github.io/pilot-skill/en/guide-cookies.html).
 
 ### I want to start a fresh trip from scratch?
 

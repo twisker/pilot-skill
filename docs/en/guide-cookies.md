@@ -1,6 +1,6 @@
 # Cookie Export Guide
 
-[中文](../zh/guide-cookies.md) | **English**
+[中文](https://twisker.github.io/pilot-skill/zh/guide-cookies.html) | **English**
 
 ## Why you need cookies
 

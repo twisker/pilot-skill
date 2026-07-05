@@ -1,6 +1,6 @@
 # 路书导出说明
 
-**中文** | [English](../en/guide-export.md)
+**中文** | [English](https://twisker.github.io/pilot-skill/en/guide-export.html)
 
 PILOT 导出三种格式，内容同源（同一份 `itinerary.json` + `intake.json` + 参考游记索引），结构统一为**四段**。产物在 `~/.pilot/workspace/<trip-id>/exports/`。
 

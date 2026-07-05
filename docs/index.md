@@ -12,18 +12,18 @@ Repo home & install instructions: [github.com/twisker/pilot-skill](https://githu
 
 ![PILOT 地图伴侣：新疆伊犁 9 日自驾全程连续路线](images/web-map.png)
 
-> 上图为真实生成的「新疆伊犁 9 日亲子自驾」路书地图视图。更多界面与三格式导出截图见[快速上手教程](zh/tutorial-quickstart.md)。
+> 上图为真实生成的「新疆伊犁 9 日亲子自驾」路书地图视图。更多界面与三格式导出截图见[快速上手教程](https://twisker.github.io/pilot-skill/zh/tutorial-quickstart.html)。
 
 ### 文档导览
 
 | 文档 | 你想做什么 |
 |------|-----------|
-| [快速上手教程](zh/tutorial-quickstart.md) | 从安装到导出第一份路书，完整走一遍（含预期终端输出） |
-| [cookie 导出指南](zh/guide-cookies.md) | 提升马蜂窝/知乎/穷游/小红书/B站的抓取成功率 |
-| [配置参考](zh/guide-config.md) | `config/pilot.json` 全字段说明（源路由 / 精选数量 / 地图等） |
-| [路书导出说明](zh/guide-export.md) | 四段结构、Excel 四 sheet、模板 sheet 用法 |
-| [常见问题 FAQ](zh/faq.md) | 抓取被拦 / 无 key 地图 / 如何更新 等 |
-| [隐私声明](zh/privacy.md) | 匿名统计收集什么/不收集什么/如何一键关闭（当前默认不上报） |
+| [快速上手教程](https://twisker.github.io/pilot-skill/zh/tutorial-quickstart.html) | 从安装到导出第一份路书，完整走一遍（含预期终端输出） |
+| [cookie 导出指南](https://twisker.github.io/pilot-skill/zh/guide-cookies.html) | 提升马蜂窝/知乎/穷游/小红书/B站的抓取成功率 |
+| [配置参考](https://twisker.github.io/pilot-skill/zh/guide-config.html) | `config/pilot.json` 全字段说明（源路由 / 精选数量 / 地图等） |
+| [路书导出说明](https://twisker.github.io/pilot-skill/zh/guide-export.html) | 四段结构、Excel 四 sheet、模板 sheet 用法 |
+| [常见问题 FAQ](https://twisker.github.io/pilot-skill/zh/faq.html) | 抓取被拦 / 无 key 地图 / 如何更新 等 |
+| [隐私声明](https://twisker.github.io/pilot-skill/zh/privacy.html) | 匿名统计收集什么/不收集什么/如何一键关闭（当前默认不上报） |
 
 ### 一分钟了解主链路
 
@@ -59,18 +59,18 @@ npx tsx ~/.pilot/app/tools/server/server.ts start --trip <trip-id>   # 手动启
 
 ![PILOT map companion: a 9-day Yili self-drive route](images/web-map.png)
 
-> Above: the map view of a real generated "9-day family self-drive around Yili, Xinjiang" itinerary. More UI and three-format export screenshots are in the [quickstart tutorial](en/tutorial-quickstart.md).
+> Above: the map view of a real generated "9-day family self-drive around Yili, Xinjiang" itinerary. More UI and three-format export screenshots are in the [quickstart tutorial](https://twisker.github.io/pilot-skill/en/tutorial-quickstart.html).
 
 ### Documentation
 
 | Doc | What it's for |
 |-----|----------------|
-| [Quickstart tutorial](en/tutorial-quickstart.md) | Install to exporting your first itinerary book, start to finish (with expected terminal output) |
-| [Cookie export guide](en/guide-cookies.md) | Improve scraping success on Mafengwo / Zhihu / Qyer / Xiaohongshu / Bilibili |
-| [Configuration reference](en/guide-config.md) | Every field in `config/pilot.json` (source routing / curation count / map, etc.) |
-| [Itinerary export guide](en/guide-export.md) | The four-section structure, Excel's 4 sheets, and how to use the template sheets |
-| [FAQ](en/faq.md) | Scraping blocked / no map key / how to update, and more |
-| [Privacy statement](en/privacy.md) | What the anonymous statistics collect / never collect / one-switch opt-out (no uploading by default) |
+| [Quickstart tutorial](https://twisker.github.io/pilot-skill/en/tutorial-quickstart.html) | Install to exporting your first itinerary book, start to finish (with expected terminal output) |
+| [Cookie export guide](https://twisker.github.io/pilot-skill/en/guide-cookies.html) | Improve scraping success on Mafengwo / Zhihu / Qyer / Xiaohongshu / Bilibili |
+| [Configuration reference](https://twisker.github.io/pilot-skill/en/guide-config.html) | Every field in `config/pilot.json` (source routing / curation count / map, etc.) |
+| [Itinerary export guide](https://twisker.github.io/pilot-skill/en/guide-export.html) | The four-section structure, Excel's 4 sheets, and how to use the template sheets |
+| [FAQ](https://twisker.github.io/pilot-skill/en/faq.html) | Scraping blocked / no map key / how to update, and more |
+| [Privacy statement](https://twisker.github.io/pilot-skill/en/privacy.html) | What the anonymous statistics collect / never collect / one-switch opt-out (no uploading by default) |
 
 ### The main flow in one minute
 

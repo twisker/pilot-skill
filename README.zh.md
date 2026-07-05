@@ -30,7 +30,7 @@ PILOT 不是「让 AI 凭空编一份行程」。它的主链路是：
 - **地图伴侣**：本地只读网页（时间线 / 地图 / 参考游记卡片墙），行程文件一变浏览器自动刷新（SSE），天地图底图；地图把全程景点按顺序连成一条连续路线（天内 + 跨天，按天配色，直线示意）
 - **三格式路书**：Excel（4 sheet，含费用公式与消费流水模板）/ PDF / Word，结构对齐资深旅行者的实战路书习惯
 - **全程本地**：数据全部落盘 `~/.pilot/workspace/`，cookie 只存本机，零云端依赖
-- **透明的匿名统计，可一键关闭**：只记事件计数与目的地粗粒度，绝不采集对话内容与身份信息，且当前默认不上报（`PILOT_TELEMETRY=off` 即全局关闭）——详见[隐私声明](docs/zh/privacy.md)
+- **透明的匿名统计，可一键关闭**：只记事件计数与目的地粗粒度，绝不采集对话内容与身份信息，且当前默认不上报（`PILOT_TELEMETRY=off` 即全局关闭）——详见[隐私声明](https://twisker.github.io/pilot-skill/zh/privacy.html)
 
 ## 界面截图
 
@@ -92,7 +92,7 @@ node install.mjs
 
 安装脚本会询问是否顺带安装视频依赖（yt-dlp/ffmpeg），选「是」或者用 `--with-video --yes` 免交互一键装好；跳过也不影响文字游记主链路，随时可以事后补装（见下）。
 
-安装后可选配置（详见 [docs/](docs/index.md)）：
+安装后可选配置（详见 [docs/](https://twisker.github.io/pilot-skill/)）：
 
 - **天地图 key**（地图视图底图）：在 `~/.pilot/app/.env` 写入 `TIANDITU_KEY=<key>`，[免费申请](https://console.tianditu.gov.cn/)（浏览器端类型）
 - **站点 cookie**（大幅提升抓取成功率）：`npx tsx ~/.pilot/app/tools/cookies.ts setup`
@@ -133,7 +133,7 @@ PILOT：（逐日细化 → 坐标查证 → 最终冲突检查 → 导出）
       ├── 路书.pdf  ├── 路书.xlsx  └── 路书.docx
 ```
 
-完整教程见 [docs/zh/tutorial-quickstart.md](docs/zh/tutorial-quickstart.md)。
+完整教程见 [docs/zh/tutorial-quickstart.md](https://twisker.github.io/pilot-skill/zh/tutorial-quickstart.html)。
 
 ## 文档
 
@@ -141,26 +141,26 @@ PILOT：（逐日细化 → 坐标查证 → 最终冲突检查 → 导出）
 
 | 文档 | 内容 |
 |------|------|
-| [docs/index.md](docs/index.md) | 文档导览（中英双语入口） |
-| [docs/zh/tutorial-quickstart.md](docs/zh/tutorial-quickstart.md) | 完整走一遍：安装 → 第一个行程 → 编辑 → 导出 |
-| [docs/zh/guide-cookies.md](docs/zh/guide-cookies.md) | cookie 导出全流程与各站说明 |
-| [docs/zh/guide-config.md](docs/zh/guide-config.md) | `config/pilot.json` 全字段参考 |
-| [docs/zh/guide-export.md](docs/zh/guide-export.md) | 路书四段结构与模板 sheet 用法 |
-| [docs/zh/faq.md](docs/zh/faq.md) | 常见问题 |
-| [docs/zh/privacy.md](docs/zh/privacy.md) | 隐私声明：匿名统计收集什么/不收集什么/如何关闭 |
+| [docs/index.md](https://twisker.github.io/pilot-skill/) | 文档导览（中英双语入口） |
+| [docs/zh/tutorial-quickstart.md](https://twisker.github.io/pilot-skill/zh/tutorial-quickstart.html) | 完整走一遍：安装 → 第一个行程 → 编辑 → 导出 |
+| [docs/zh/guide-cookies.md](https://twisker.github.io/pilot-skill/zh/guide-cookies.html) | cookie 导出全流程与各站说明 |
+| [docs/zh/guide-config.md](https://twisker.github.io/pilot-skill/zh/guide-config.html) | `config/pilot.json` 全字段参考 |
+| [docs/zh/guide-export.md](https://twisker.github.io/pilot-skill/zh/guide-export.html) | 路书四段结构与模板 sheet 用法 |
+| [docs/zh/faq.md](https://twisker.github.io/pilot-skill/zh/faq.html) | 常见问题 |
+| [docs/zh/privacy.md](https://twisker.github.io/pilot-skill/zh/privacy.html) | 隐私声明：匿名统计收集什么/不收集什么/如何关闭 |
 
 英文版文档在 [docs/en/](docs/en/)（内容与中文版一一对应，非摘要翻译）。
 
 ## 常见问题（速览）
 
 **为什么需要 cookie？**
-马蜂窝/小红书等站点对未登录访问有反爬限制（验证码、登录墙）。PILOT 提供引导式工具在你本机浏览器登录后导出 cookie，**只保存在本机 `~/.pilot/cookies/`，绝不上传任何服务器**。不导出 cookie 也能用，只是这些源的抓取成功率低，PILOT 会如实汇报并降级。详见 [docs/zh/guide-cookies.md](docs/zh/guide-cookies.md)。
+马蜂窝/小红书等站点对未登录访问有反爬限制（验证码、登录墙）。PILOT 提供引导式工具在你本机浏览器登录后导出 cookie，**只保存在本机 `~/.pilot/cookies/`，绝不上传任何服务器**。不导出 cookie 也能用，只是这些源的抓取成功率低，PILOT 会如实汇报并降级。详见 [docs/zh/guide-cookies.md](https://twisker.github.io/pilot-skill/zh/guide-cookies.html)。
 
 **天地图 key 怎么申请？**
 [天地图控制台](https://console.tianditu.gov.cn/) 免费注册，创建「浏览器端」应用即得 key。没有 key 时地图视图显示引导文案，不影响行程设计主链路。
 
 **抓取失败了怎么办？**
-部分源被验证码拦截是常态。PILOT 的降级链：WebSearch → WebFetch 直读 → playwright 兜底 → 摘要增补 → 如实汇报覆盖率并给你选项（继续 / 导 cookie 重试 / 换词重搜），绝不假装数据充足。详见 [docs/zh/faq.md](docs/zh/faq.md)。
+部分源被验证码拦截是常态。PILOT 的降级链：WebSearch → WebFetch 直读 → playwright 兜底 → 摘要增补 → 如实汇报覆盖率并给你选项（继续 / 导 cookie 重试 / 换词重搜），绝不假装数据充足。详见 [docs/zh/faq.md](https://twisker.github.io/pilot-skill/zh/faq.html)。
 
 ## License
 

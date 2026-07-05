@@ -1,6 +1,6 @@
 # 配置参考：config/pilot.json
 
-**中文** | [English](../en/guide-config.md)
+**中文** | [English](https://twisker.github.io/pilot-skill/en/guide-config.html)
 
 配置文件位置：`~/.pilot/app/config/pilot.json`。工具按「相对自身位置」解析该文件，也可用环境变量 `PILOT_CONFIG=<绝对路径>` 覆盖（对 `search.ts` / `distill.ts` / `video.ts` 生效）。
 

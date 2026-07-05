@@ -1,6 +1,6 @@
 # Itinerary Book Export Guide
 
-[中文](../zh/guide-export.md) | **English**
+[中文](https://twisker.github.io/pilot-skill/zh/guide-export.html) | **English**
 
 PILOT exports three formats from the same source data (the same `itinerary.json` + `intake.json` + reference-travelogue index), all sharing a unified **four-section** structure. Output goes to `~/.pilot/workspace/<trip-id>/exports/`.
 
