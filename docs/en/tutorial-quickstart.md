@@ -79,7 +79,14 @@ PILOT: To confirm: Oct 1–6, 6 days total, starting from Kunming,
        I'll start searching travelogues now if that's right.
 ```
 
-At the same time it starts the **map companion** (a local page at http://localhost:4870 with three views: timeline / map / reference-travelogue card wall). The browser auto-refreshes every time the itinerary changes.
+At the same time it starts the **map companion** (a local page at http://localhost:4870 with three views: timeline / map / reference-travelogue card wall). The browser auto-refreshes every time the itinerary changes. The map links every located stop into one continuous route in itinerary order (within a day and across days, color-coded per day, straight-line segments indicating direction).
+
+![Map companion: continuous route](../images/web-map.png)
+
+The timeline view lists each day's items with costs and notes; the card wall shows the top-5 template candidates with taste scores:
+
+![Timeline view](../images/web-timeline.png)
+![Reference-travelogue card wall](../images/web-cards.png)
 
 ## 3. Search & Curation (PILOT does this automatically — you just watch the report)
 
@@ -137,6 +144,12 @@ Itinerary book exported:
 ├── Yunnan-6-Day-Road-Trip.xlsx   (4 sheets, with cost formulas and an expense-log template)
 └── Yunnan-6-Day-Road-Trip.docx
 ```
+
+The three formats carry the same content with different strengths — PDF for print/offline, Excel (4 sheets) for computable and splittable costs, Word for further editing:
+
+| PDF | Excel | Word |
+|-----|-------|------|
+| ![PDF itinerary book](../images/export-pdf.png) | ![Excel itinerary book](../images/export-excel.png) | ![Word itinerary book](../images/export-word.png) |
 
 See the [export guide](guide-export.md) for the four-section structure and how to use the template sheets.
 

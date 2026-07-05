@@ -235,7 +235,7 @@ function renderTravelogueCard(t) {
     ? t.tags.map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")
     : "";
   const url = safeUrl(t.url);
-  const total = t.total !== null && t.total !== undefined ? t.total : "--";
+  const total = typeof t.total === "number" ? t.total.toFixed(1) : t.total != null ? t.total : "--";
   return `
     <div class="travelogue-card">
       <div class="card-id">${escapeHtml(t.id)}</div>
@@ -303,15 +303,19 @@ function buildDayFeatures(points) {
     byDay.get(p.day).push(p);
   }
 
+  // 沿全程顺序逐段连线：points 已按 day→item 顺序排列，相邻两点成一段。
+  // 这样天内相邻点、以及上一天末点→下一天首点（跨天）都会连上；
+  // 单点的天也因与前后天相连而不再孤立。每段颜色取该段起点所在天。
+  // 直线连接（非驾车路线）——路线走向示意，不代表实际道路。
   const lineFeatures = [];
-  for (const [day, pts] of byDay) {
-    if (pts.length >= 2) {
-      lineFeatures.push({
-        type: "Feature",
-        properties: { day },
-        geometry: { type: "LineString", coordinates: pts.map((p) => [p.lng, p.lat]) },
-      });
-    }
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    lineFeatures.push({
+      type: "Feature",
+      properties: { day: a.day },
+      geometry: { type: "LineString", coordinates: [[a.lng, a.lat], [b.lng, b.lat]] },
+    });
   }
 
   const pointFeatures = points.map((p) => ({

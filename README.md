@@ -27,10 +27,29 @@ Every day of the itinerary traces back to a specific day in a specific real trav
 - **Real-time search of real travelogues**: multi-source search across Mafengwo / Qyer / Ctrip guides / Zhihu / Xiaohongshu / Bilibili / Tuchong / 500px, with a playwright scraping fallback; video travelogues on Bilibili are understood via frame sampling
 - **Structured curation**: every travelogue is normalized into a shared schema, then double-ranked by a machine score (completeness / granularity / media richness / freshness) and a taste score; after de-duplication, the top 5 become template candidates
 - **Conversational editing**: "swap day 3 for the route from travelogue #2," "add a day in Hemu" — cross-travelogue splicing and day-by-day refinement all happen in conversation, with every edit automatically passing schema validation and conflict rules (excessively long drives, overpacked days, over-budget totals, anomalous coordinate distances, etc.)
-- **Map companion**: a local read-only page (timeline / map / reference-travelogue card wall) that auto-refreshes in the browser (via SSE) whenever the itinerary file changes, using a Tianditu basemap
+- **Map companion**: a local read-only page (timeline / map / reference-travelogue card wall) that auto-refreshes in the browser (via SSE) whenever the itinerary file changes, using a Tianditu basemap; the map links every located stop into one continuous route in order (within a day and across days, color-coded per day, straight-line segments)
 - **Three-format itinerary book**: Excel (4 sheets, with cost formulas and an expense-log template) / PDF / Word, structured to match how experienced travelers actually use a paper itinerary book on the road
 - **Fully local**: all data is written to `~/.pilot/workspace/`, cookies stay on your machine only, zero cloud dependency
 - **Transparent anonymous statistics with a one-switch opt-out**: event counts and coarse destinations only — never conversation content or identity, and nothing is uploaded by default (`PILOT_TELEMETRY=off` disables it globally) — see the [privacy statement](docs/en/privacy.md)
+
+## Screenshots
+
+> Below is a real generated itinerary book — a 9-day family self-drive around Yili, Xinjiang (6 adults + 3 kids, ~¥9,778 per person).
+
+**Map companion** (local read-only page at localhost:4870) — every located stop linked into one continuous route in itinerary order, color-coded per day:
+
+![Map companion: continuous route](docs/images/web-map.png)
+
+**Timeline view** (day-by-day items with costs and notes) and **reference-travelogue card wall** (top-5 picks with taste scores):
+
+![Timeline view](docs/images/web-timeline.png)
+![Reference-travelogue card wall](docs/images/web-cards.png)
+
+**Three-format export** — PDF (print/offline), Excel (4 sheets, costs computable), Word (editable):
+
+| PDF | Excel | Word |
+|-----|-------|------|
+| ![PDF itinerary book](docs/images/export-pdf.png) | ![Excel itinerary book](docs/images/export-excel.png) | ![Word itinerary book](docs/images/export-word.png) |
 
 ## Requirements
 

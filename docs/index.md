@@ -10,6 +10,10 @@ Repo home & install instructions: [github.com/twisker/pilot-skill](https://githu
 
 **PILOT** 是一个 Claude Code Skill：对话式旅行路书设计工具。实时搜索全网真实游记 → 结构化精选 → 对话生成与编辑行程 → 冲突检查 → 导出 Excel / PDF / Word 三格式路书，另配浏览器地图伴侣视图。全程本地运行。
 
+![PILOT 地图伴侣：新疆伊犁 9 日自驾全程连续路线](images/web-map.png)
+
+> 上图为真实生成的「新疆伊犁 9 日亲子自驾」路书地图视图。更多界面与三格式导出截图见[快速上手教程](zh/tutorial-quickstart.md)。
+
 ### 文档导览
 
 | 文档 | 你想做什么 |
@@ -52,6 +56,10 @@ npx tsx ~/.pilot/app/tools/server/server.ts start --trip <trip-id>   # 手动启
 ## English
 
 **PILOT** is a Claude Code Skill for conversational travel itinerary design. It searches real travelogues across the web in real time, structures and curates the best ones, drafts and edits a day-by-day itinerary through conversation, runs deterministic conflict checks, and exports a three-format itinerary book (Excel / PDF / Word), plus a read-only map companion in your browser. Runs entirely on your own machine.
+
+![PILOT map companion: a 9-day Yili self-drive route](images/web-map.png)
+
+> Above: the map view of a real generated "9-day family self-drive around Yili, Xinjiang" itinerary. More UI and three-format export screenshots are in the [quickstart tutorial](en/tutorial-quickstart.md).
 
 ### Documentation
 

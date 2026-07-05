@@ -48,6 +48,10 @@ TIANDITU_KEY=your-key
 
 Coordinates must be verified online; any entry whose `geo` couldn't be verified is left empty and doesn't appear on the map — PILOT would rather leave it out than fill in a coordinate from memory.
 
+### What are the lines on the map? Are they driving routes?
+
+The map connects **all points that have coordinates into one continuous route in itinerary order** — within a day and across days, color-coded per day; even a lone single point links to the days before and after it. Note these are **straight-line segments that only indicate the general route direction, not the actual roads**: real driving routes would require an extra routing service (a cloud dependency), and V1 stays local and zero-dependency, so it doesn't draw real road geometry.
+
 ## Install & updates
 
 ### How do I update to a new version?
