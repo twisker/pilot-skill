@@ -42,6 +42,14 @@ jobs:
         working-directory: tools
         run: npx tsc --noEmit
 
+      # GitHub runner 镜像已不再预装 ffmpeg。仅在 Linux 上用 apt 快速装上，让
+      # video 抽帧的真实二进制用例在 ubuntu 上跑到（覆盖真实链路）；macOS/Windows
+      # 上 brew/choco 装 ffmpeg 太慢，不装——那两平台上这组用例由 video.test.ts
+      # 的 skipIf(!HAS_FFMPEG) 自动跳过，suite 不会因缺 ffmpeg 变红。
+      - name: 安装 ffmpeg（仅 Linux，供 video 抽帧真实用例）
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: vitest（含 Task 21 新增 video-deps / setup-video / open-url 单测）
         working-directory: tools
         run: npx vitest run

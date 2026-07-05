@@ -21,13 +21,23 @@ import {
 
 // ---------------------------------------------------------------------------
 // 共享 fixture：现场用 ffmpeg 生成一段 10s 测试视频（lavfi testsrc），全程不碰
-// 真实网站/下载。要求本机已装 ffmpeg/ffprobe（任务环境已确认装好）。
+// 真实网站/下载。
+//
+// ffmpeg/ffprobe 是可选外部依赖：本机开发环境与装了 ffmpeg 的 CI 平台（本仓
+// CI 在 Linux runner 上 apt 装 ffmpeg）全量运行；缺失时——GitHub runner 镜像
+// 已不再预装 ffmpeg，macOS/Windows runner 上就没有——依赖真实二进制的用例
+// **整组 skip**，而不是让 beforeAll 抛 `ENOENT` 把整个 suite 拖红（这正是本仓
+// CI 长期 failing 的根因）。与下方 yt-dlp 的 skipIf 同一套「未装则跳过、不制造
+// 假红灯」哲学；纯逻辑用例（抽帧时间点计算等）不受影响照常跑。
 // ---------------------------------------------------------------------------
+
+const HAS_FFMPEG = checkBinary("ffmpeg") && checkBinary("ffprobe");
 
 let fixtureDir: string;
 let fixtureVideoPath: string;
 
 beforeAll(() => {
+  if (!HAS_FFMPEG) return; // 无 ffmpeg 环境跳过 fixture 生成；依赖它的用例已整组 skipIf
   fixtureDir = mkdtempSync(path.join(tmpdir(), "pilot-video-fixture-"));
   fixtureVideoPath = path.join(fixtureDir, "fixture.mp4");
   execFileSync("ffmpeg", [
@@ -41,7 +51,7 @@ beforeAll(() => {
 }, 30000);
 
 afterAll(() => {
-  if (existsSync(fixtureDir)) rmSync(fixtureDir, { recursive: true });
+  if (fixtureDir && existsSync(fixtureDir)) rmSync(fixtureDir, { recursive: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -61,7 +71,7 @@ describe("lib/video-frames: 均匀抽帧时间点计算", () => {
   });
 });
 
-describe("lib/video-frames: ffprobe 时长探测 + ffmpeg 抽帧（真实二进制 + 现场生成的 testsrc 视频）", () => {
+describe.skipIf(!HAS_FFMPEG)("lib/video-frames: ffprobe 时长探测 + ffmpeg 抽帧（真实二进制 + 现场生成的 testsrc 视频）", () => {
   it("probeDuration 读出的时长接近 10s", async () => {
     const duration = await probeDuration(fixtureVideoPath);
     expect(duration).toBeGreaterThan(9);
@@ -238,10 +248,10 @@ describe("video.ts: resolveCookieArgs", () => {
 // ---------------------------------------------------------------------------
 
 describe("video.ts: 依赖检查", () => {
-  it("checkBinary 对真实存在的 ffmpeg/ffprobe 返回 true", () => {
-    // ffmpeg/ffprobe 在 CI 三平台 runner（ubuntu/macos/windows-latest）与本机
-    // 开发环境均预装，可断言恒真；yt-dlp 不预装，见下方 skipIf 条件测试
-    // （Task 21 review 修复：避免 CI 必红）。
+  it.skipIf(!HAS_FFMPEG)("checkBinary 对真实存在的 ffmpeg/ffprobe 返回 true（装了 ffmpeg 时才跑）", () => {
+    // GitHub runner 镜像已不再预装 ffmpeg（macOS/Windows runner 上没有），故不能
+    // 无条件断言恒真——装了才跑（本仓 CI 在 Linux 上 apt 装 ffmpeg），没装则跳过，
+    // 与下方 yt-dlp 的 skipIf 同一套「未装则跳过、不制造假红灯」哲学。
     expect(checkBinary("ffmpeg")).toBe(true);
     expect(checkBinary("ffprobe")).toBe(true);
   });
@@ -308,7 +318,7 @@ describe("video.ts: 依赖检查", () => {
 // 这条链路，锁死修复。
 // ---------------------------------------------------------------------------
 
-describe("video.ts: checkBinary + defaultBinaries 绝对路径联测", () => {
+describe.skipIf(!HAS_FFMPEG)("video.ts: checkBinary + defaultBinaries 绝对路径联测", () => {
   let fakeHomeDir: string;
 
   beforeEach(() => {
@@ -474,7 +484,7 @@ describe("video.ts: prep --meta-only（fake yt-dlp，不依赖 ffmpeg）", () =>
   }, 15000);
 });
 
-describe("video.ts: prep 全流程（fake yt-dlp 下载 + 真实 ffmpeg/ffprobe 抽帧）", () => {
+describe.skipIf(!HAS_FFMPEG)("video.ts: prep 全流程（fake yt-dlp 下载 + 真实 ffmpeg/ffprobe 抽帧）", () => {
   let stubDir: string;
   let fakeYtDlp: string;
 
