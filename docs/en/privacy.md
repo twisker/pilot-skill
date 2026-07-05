@@ -15,7 +15,7 @@ If a future release enables reporting, this page will be updated in the same rel
 | Data | Details |
 |------|---------|
 | Anonymous install id | A random UUID generated locally on first run (stored in `~/.pilot/telemetry.json`); contains no identity information and is never linked to accounts, email addresses, or device fingerprints |
-| Event counts (5-event whitelist) | `install` / `trip_created` / `export` (itinerary book exported) / `reco_impression` (a recommendation was shown) / `reco_dismissed` (a recommendation was declined) |
+| Event counts (6-event whitelist) | `install` / `trip_created` / `export` (itinerary book exported) / `reco_impression` (a recommendation was shown) / `reco_dismissed` (a recommendation was declined) / `booking_link_shown` (a booking link was presented; short code only) |
 | Coarse destination | `trip_created` carries the destination string (city/region level, e.g. "Xinjiang") and the trip's day count — nothing else |
 | Export format | `export` carries the format name (pdf/xlsx/docx) |
 | Product id and match score | `reco_impression` carries `product_id` and a match score; `reco_dismissed` carries `product_id` only |
