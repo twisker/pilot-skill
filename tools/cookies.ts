@@ -8,7 +8,7 @@ import { getPilotHome, cookieFilePath } from "./lib/sites/cookies";
 // ---------------------------------------------------------------------------
 // PILOT cookies.ts —— 引导式 cookie 导出工具（Task 17）
 //
-// 取代人工TODO事项.md 里手工逐条敲 `npx playwright open ...` 的旧流程：
+// 取代手工逐条敲 `npx playwright open ...` 的旧流程：
 //   setup [--site <name>]  headed chromium 打开登录页 → 轮询检测登录标志
 //                          cookie → 检测到即存为 storageState → 自动进入下一站
 //   status                 表格汇报各站 cookie 文件现状（是否存在/标志 cookie
