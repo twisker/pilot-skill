@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PILOT 路书 —— 只读预览</title>
+    <link rel="stylesheet" href="/assets/maplibre-gl.css" />
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>PILOT 路书预览</h1>
+      <div id="trip-summary" class="trip-summary">加载中…</div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="timeline">时间线</button>
+      <button class="tab-btn" data-tab="map">地图</button>
+      <button class="tab-btn" data-tab="cards">参考游记</button>
+    </nav>
+
+    <main>
+      <section id="tab-timeline" class="tab-panel active">
+        <div id="timeline-root" class="panel-root">加载中…</div>
+      </section>
+
+      <section id="tab-map" class="tab-panel">
+        <div id="map-guidance" class="panel-message" hidden></div>
+        <div id="map" class="map-container" hidden></div>
+      </section>
+
+      <section id="tab-cards" class="tab-panel">
+        <div id="cards-root" class="panel-root">加载中…</div>
+      </section>
+    </main>
+
+    <footer class="statusbar">
+      <span id="sse-status">连接中…</span>
+      <span class="hint">只读预览 · 内容随 workspace 文件变化自动刷新</span>
+    </footer>
+
+    <script src="/assets/maplibre-gl.js"></script>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

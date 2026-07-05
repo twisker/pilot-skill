@@ -1,0 +1,27 @@
+{
+  "name": "tools",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "chokidar": "^5.0.0",
+    "docx": "^9.7.1",
+    "exceljs": "^4.4.0",
+    "maplibre-gl": "^5.24.0",
+    "playwright": "^1.61.1"
+  }
+}

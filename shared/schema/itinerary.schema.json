@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pilot.local/schema/itinerary",
+  "title": "Itinerary",
+  "description": "用户确认/细化后的行程（v4.0 冻结契约，spec §6，cold review 增补 cost_cny / agency_recommendation）。写入 ~/.pilot/workspace/<trip>/itinerary.json。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "trip_id",
+    "status",
+    "base_travelogue",
+    "days",
+    "agency_recommendation"
+  ],
+  "properties": {
+    "trip_id": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "confirmed", "detailed"]
+    },
+    "base_travelogue": {
+      "type": "string",
+      "minLength": 1,
+      "description": "蓝本游记 id"
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["day", "date", "items"],
+        "properties": {
+          "day": { "type": "integer", "minimum": 1 },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "source_ref": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["travelogue_id", "day"],
+            "properties": {
+              "travelogue_id": { "type": "string" },
+              "day": { "type": "integer", "minimum": 1 }
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "name", "note"],
+              "properties": {
+                "time": {
+                  "type": ["string", "null"],
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["sight", "meal", "hotel", "transit", "other"]
+                },
+                "name": { "type": "string" },
+                "note": { "type": "string" },
+                "geo": {
+                  "type": ["object", "null"],
+                  "additionalProperties": false,
+                  "required": ["lat", "lng"],
+                  "properties": {
+                    "lat": { "type": "number" },
+                    "lng": { "type": "number" }
+                  }
+                },
+                "cost_cny": {
+                  "type": ["number", "null"],
+                  "minimum": 0
+                },
+                "booking": {
+                  "type": ["object", "null"],
+                  "additionalProperties": false,
+                  "required": ["type", "name", "affiliate_url", "alt_recommendation"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["flight", "hotel", "car", "restaurant", "ticket"]
+                    },
+                    "name": { "type": "string" },
+                    "url": {
+                      "type": ["string", "null"],
+                      "format": "uri"
+                    },
+                    "affiliate_url": {
+                      "type": "null",
+                      "description": "V1 恒 null（预留字段）"
+                    },
+                    "alt_recommendation": {
+                      "type": "null",
+                      "description": "V1 恒 null（预留字段）"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "agency_recommendation": {
+      "type": ["null", "object"],
+      "additionalProperties": false,
+      "required": ["name", "brief", "url", "reason"],
+      "properties": {
+        "name": { "type": "string" },
+        "brief": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "reason": { "type": "string" }
+      },
+      "description": "V1 恒 null（预留字段）"
+    },
+    "conflicts_checked_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  }
+}

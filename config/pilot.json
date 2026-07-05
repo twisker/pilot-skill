@@ -1,0 +1,52 @@
+{
+  "topN": 50,
+  "keepN": 5,
+  "maxFrames": 20,
+  "locale": "zh",
+  "sources": {
+    "zh": {
+      "travelogue": ["马蜂窝", "穷游", "携程攻略"],
+      "community": ["小红书", "知乎"],
+      "video": ["B站"],
+      "photo": ["图虫", "500px"]
+    },
+    "en": {}
+  },
+  "query_templates": {
+    "category_suffixes": {
+      "travelogue": ["游记", "攻略"],
+      "community": ["游记", "攻略"],
+      "video": ["视频攻略", "游记"],
+      "photo": ["摄影游记", "照片攻略"]
+    },
+    "transport_keywords": {
+      "self-drive": "自驾",
+      "public": "公共交通",
+      "mixed": ""
+    }
+  },
+  "pick_quota": {
+    "travelogue": 0.5,
+    "community": 0.25,
+    "video": 0.15,
+    "photo": 0.1
+  },
+  "preferred_domains": {
+    "you.ctrip.com": 3,
+    "tuchong.com": 2
+  },
+  "scrape_domains": [
+    "mafengwo.cn",
+    "zhihu.com",
+    "ctrip.com",
+    "xiaohongshu.com",
+    "xhslink.com"
+  ],
+  "media_domains": {
+    "video": ["bilibili.com", "b23.tv"],
+    "image-set": ["500px.com", "tuchong.com"]
+  },
+  "map": {
+    "tile_url": null
+  }
+}
