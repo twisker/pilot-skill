@@ -19,10 +19,46 @@ const DAY_COLORS = [
   "#8a8a2f",
 ];
 
-let latestState = { intake: null, travelogues: null, itinerary: null };
+let latestState = { intake: null, travelogues: null, itinerary: null, progress: null };
 let latestConfig = { tianditu_key: null };
 let activeTab = "timeline";
 let mapInstance = null;
+
+// ---------------------------------------------------------------------------
+// 长任务体验进度面板（spec §10.9）：九阶段 stepper + 当前阶段进度条/沙漏 + message。
+// ---------------------------------------------------------------------------
+
+const PROGRESS_STAGE_ORDER = [
+  "intake",
+  "search",
+  "fetch",
+  "structure",
+  "distill",
+  "itinerary",
+  "refine",
+  "check",
+  "export",
+];
+const PROGRESS_STAGE_LABELS = {
+  intake: "意图收集",
+  search: "搜索编排",
+  fetch: "抓取",
+  structure: "结构化",
+  distill: "精选",
+  itinerary: "行程生成",
+  refine: "逐日细化",
+  check: "冲突检查",
+  export: "导出",
+  video: "视频预处理（支线）",
+};
+const PROGRESS_IDLE_MS = 10 * 60 * 1000; // 10 分钟无更新视为空闲
+
+function isProgressStale(progress) {
+  if (!progress || !progress.updated_at) return true;
+  const t = new Date(progress.updated_at).getTime();
+  if (Number.isNaN(t)) return true;
+  return Date.now() - t > PROGRESS_IDLE_MS;
+}
 
 // ---------------------------------------------------------------------------
 // 工具函数
@@ -72,6 +108,64 @@ function renderSummary(state) {
     parts.push(`预算¥${intake.budget_cny}`);
   }
   el.textContent = parts.length ? parts.join(" · ") : "intake 信息不完整";
+}
+
+// ---------------------------------------------------------------------------
+// 进度面板：九阶段 stepper（已完成✓/进行中动画/未开始灰）+ 当前阶段进度条
+// （有 total）或沙漏动画（无 total）+ message；progress 为 null 或
+// updated_at 超 10 分钟则显示「空闲」。
+// ---------------------------------------------------------------------------
+
+function renderProgressStepper(progress, idle) {
+  const activeIdx = !idle && progress ? PROGRESS_STAGE_ORDER.indexOf(progress.stage) : -1;
+  return PROGRESS_STAGE_ORDER.map((stage, i) => {
+    let cls = "step-pending";
+    if (activeIdx !== -1) {
+      if (i < activeIdx) cls = "step-done";
+      else if (i === activeIdx) cls = "step-active";
+    }
+    const label = escapeHtml(PROGRESS_STAGE_LABELS[stage] || stage);
+    const mark = cls === "step-done" ? "✓" : i + 1;
+    return `
+      <div class="progress-step ${cls}">
+        <span class="step-dot">${mark}</span>
+        <span class="step-label">${label}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderProgress(state) {
+  const stepperEl = document.getElementById("progress-stepper");
+  const barWrapEl = document.getElementById("progress-bar-wrap");
+  const messageEl = document.getElementById("progress-message");
+  if (!stepperEl || !barWrapEl || !messageEl) return;
+
+  const progress = state.progress;
+  const idle = isProgressStale(progress);
+
+  stepperEl.innerHTML = renderProgressStepper(progress, idle);
+
+  if (idle) {
+    barWrapEl.innerHTML = `<div class="progress-idle">空闲</div>`;
+    messageEl.textContent = "";
+    return;
+  }
+
+  const label = escapeHtml(PROGRESS_STAGE_LABELS[progress.stage] || progress.stage);
+  if (progress.current != null && progress.total != null && progress.total > 0) {
+    const pct = Math.max(0, Math.min(100, Math.round((progress.current / progress.total) * 100)));
+    barWrapEl.innerHTML = `
+      <div class="progress-label">${label} ${progress.current}/${progress.total}</div>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+    `;
+  } else {
+    barWrapEl.innerHTML = `
+      <div class="progress-label">${label}</div>
+      <div class="progress-hourglass" aria-label="处理中">⏳</div>
+    `;
+  }
+  messageEl.textContent = progress.message || "";
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +420,7 @@ function renderMap(state, config) {
 
 function renderAll() {
   renderSummary(latestState);
+  renderProgress(latestState);
   renderTimeline(latestState);
   renderCards(latestState);
   if (activeTab === "map") {

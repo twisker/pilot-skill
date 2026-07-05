@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import chokidar from "chokidar";
 import { tripDir, readJson } from "../lib/workspace";
+import type { ProgressState } from "../lib/progress";
 
 // ---------------------------------------------------------------------------
 // PILOT server.ts —— localhost 只读 UI（时间线 / 地图 / 参考游记卡片墙）
@@ -10,6 +11,8 @@ import { tripDir, readJson } from "../lib/workspace";
 //   start --trip <id> [--port 4870]
 //     零框架 node:http 静态服务 + 3 个只读端点：
 //       GET /api/state   聚合 intake.json / travelogues/index.json / itinerary.json
+//                        / progress.json（长任务体验，spec §10.9；文件不存在或
+//                        超 10 分钟未更新由前端判定为空闲）
 //                        （文件不存在则对应字段为 null，不报错）
 //       GET /api/config  下发 {tianditu_key}（读项目根 .env，key 本身绝不写入
 //                        任何入库文件；缺失时前端显示引导文案，不崩）
@@ -33,6 +36,7 @@ export interface StateResponse {
   intake: unknown | null;
   travelogues: unknown | null;
   itinerary: unknown | null;
+  progress: ProgressState | null;
 }
 
 function tryReadJson<T>(tripId: string, relPath: string): T | null {
@@ -48,6 +52,7 @@ export function readStateSafe(tripId: string): StateResponse {
     intake: tryReadJson(tripId, "intake.json"),
     travelogues: tryReadJson(tripId, "travelogues/index.json"),
     itinerary: tryReadJson(tripId, "itinerary.json"),
+    progress: tryReadJson<ProgressState>(tripId, "progress.json"),
   };
 }
 

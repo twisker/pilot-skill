@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, existsSync, renameSync, mkdirSync } from "no
 import path from "node:path";
 import Ajv, { type ValidateFunction } from "ajv";
 import { tripDir, writeJson, atomicWriteFileSync } from "./lib/workspace";
+import { reportProgress, shouldReportTick } from "./lib/progress";
 import {
   type Travelogue,
   poiSimilarity,
@@ -95,7 +96,11 @@ export function runValidate(tripId: string): ValidateResult {
   const invalid: string[] = [];
   let valid = 0;
 
-  for (const file of files) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (shouldReportTick(i, files.length)) {
+      reportProgress(tripId, { stage: "distill", current: i + 1, total: files.length, message: `校验中: ${file}` });
+    }
     const filePath = path.join(dir, file);
     let ok = false;
     try {
@@ -143,7 +148,11 @@ export function runDedupe(tripId: string): DedupeResult {
   const kept: Kept[] = [];
   const removed: DedupeRemoval[] = [];
 
-  for (const file of files) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (shouldReportTick(i, files.length)) {
+      reportProgress(tripId, { stage: "distill", current: i + 1, total: files.length, message: `去重中: ${file}` });
+    }
     const filePath = path.join(dir, file);
     const t = readTravelogue(filePath);
 
@@ -196,7 +205,11 @@ export function runScore(tripId: string): ScoreResult {
   const dir = travelogueDir(tripId);
   const files = listTravelogueFiles(dir);
 
-  for (const file of files) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (shouldReportTick(i, files.length)) {
+      reportProgress(tripId, { stage: "distill", current: i + 1, total: files.length, message: `评分中: ${file}` });
+    }
     const filePath = path.join(dir, file);
     const t = readTravelogue(filePath);
     t.quality.deterministic = scoreDeterministic(t);

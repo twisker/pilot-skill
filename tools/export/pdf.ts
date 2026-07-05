@@ -5,6 +5,7 @@ import { buildManualData } from "./lib/render";
 import { renderManualHtml, escapeHtml } from "./lib/html";
 import { tripDir } from "../lib/workspace";
 import { track } from "../lib/telemetry";
+import { reportProgress } from "../lib/progress";
 
 // ---------------------------------------------------------------------------
 // PILOT export/pdf.ts —— 穷游手册九章节 PDF 导出（三格式中优先级最高的保底格式）
@@ -37,6 +38,8 @@ export interface RunPdfResult {
 }
 
 export async function runPdf(tripId: string): Promise<RunPdfResult> {
+  reportProgress(tripId, { stage: "export", current: 0, total: 1, message: "开始导出 PDF" });
+
   const data = buildManualData(tripId);
   const html = renderManualHtml(data);
 
@@ -64,6 +67,7 @@ export async function runPdf(tripId: string): Promise<RunPdfResult> {
   }
 
   const bytes = statSync(outPath).size;
+  reportProgress(tripId, { stage: "export", current: 1, total: 1, message: `PDF 导出完成: ${outPath}` });
   return { path: outPath, bytes };
 }
 

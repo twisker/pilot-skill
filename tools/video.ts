@@ -9,6 +9,7 @@ import { cookieFilePath } from "./lib/sites/cookies";
 import { probeDuration, extractFrames } from "./lib/video-frames";
 import { storageStateToNetscape, type StorageState } from "./lib/cookie-convert";
 import { resolveDefaultBinaries, type VideoBinaries } from "./lib/video-deps";
+import { reportProgress, truncateForLog } from "./lib/progress";
 
 const execFileAsync = promisify(execFile);
 
@@ -218,6 +219,12 @@ export async function runPrep(tripId: string, url: string, opts: PrepOptions = {
     if (!deps.ok) throw new DependencyError(deps.missing);
 
     try {
+      reportProgress(tripId, {
+        stage: "video",
+        current: null,
+        total: null,
+        message: `拉取视频元信息中（meta-only）: ${truncateForLog(url)}`,
+      });
       const cookieArgs = resolveCookieArgs(url, tmpCookiesDir);
       const meta = await ytDlpMetaOnly(binaries.ytDlp, url, cookieArgs);
       const manifest: Manifest = {
@@ -228,6 +235,12 @@ export async function runPrep(tripId: string, url: string, opts: PrepOptions = {
         ...(meta.title ? { title: meta.title } : {}),
       };
       writeJson(tripId, `${videoRelDir}/manifest.json`, manifest);
+      reportProgress(tripId, {
+        stage: "video",
+        current: null,
+        total: null,
+        message: "manifest 写入完成（meta-only，无抽帧）",
+      });
       return manifest;
     } finally {
       // 清理 cookies 临时目录
@@ -243,6 +256,12 @@ export async function runPrep(tripId: string, url: string, opts: PrepOptions = {
 
   try {
     try {
+      reportProgress(tripId, {
+        stage: "video",
+        current: null,
+        total: null,
+        message: `下载中: ${truncateForLog(url)}`,
+      });
       const cookieArgs = resolveCookieArgs(url, tmpCookiesDir);
       const meta = await ytDlpDownload(binaries.ytDlp, url, sourcePath, cookieArgs);
 
@@ -251,6 +270,14 @@ export async function runPrep(tripId: string, url: string, opts: PrepOptions = {
         duration,
         maxFrames,
         ffmpegBin: binaries.ffmpeg,
+        onProgress: (current, total) => {
+          reportProgress(tripId, {
+            stage: "video",
+            current,
+            total,
+            message: `抽帧 ${current}/${total}`,
+          });
+        },
       });
 
       const manifest: Manifest = {
@@ -261,6 +288,12 @@ export async function runPrep(tripId: string, url: string, opts: PrepOptions = {
         ...(meta.title ? { title: meta.title } : {}),
       };
       writeJson(tripId, `${videoRelDir}/manifest.json`, manifest);
+      reportProgress(tripId, {
+        stage: "video",
+        current: frames.length,
+        total: frames.length,
+        message: "manifest 写入完成",
+      });
       return manifest;
     } finally {
       // 磁盘纪律：无论抽帧或下载成功与否，下载的原视频与部分文件都不留存，帧留着

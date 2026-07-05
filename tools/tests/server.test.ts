@@ -57,6 +57,7 @@ describe("GET /api/state", () => {
         intake: { trip_id: tripId, destination: "新疆北疆" },
         travelogues: null,
         itinerary: null,
+        progress: null,
       });
     } finally {
       await app.close();
@@ -78,18 +79,43 @@ describe("GET /api/state", () => {
         { id: "t1", brief: "b", tags: ["自然"], total: 8, url: "https://you.ctrip.com/x" },
       ]);
       expect(body.itinerary).toEqual({ trip_id: tripId, status: "draft", days: [] });
+      expect(body.progress).toBeNull();
     } finally {
       await app.close();
     }
   });
 
-  it("空 trip（三个文件都不存在）返回三个 null", async () => {
+  it("空 trip（四个文件都不存在）返回四个 null", async () => {
     const { app, baseUrl } = await startApp();
     try {
       const res = await fetch(`${baseUrl}/api/state`);
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body).toEqual({ intake: null, travelogues: null, itinerary: null });
+      expect(body).toEqual({ intake: null, travelogues: null, itinerary: null, progress: null });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("progress.json 存在时聚合进度字段（长任务体验，spec §10.9）", async () => {
+    writeJson(tripId, "progress.json", {
+      stage: "fetch",
+      current: 12,
+      total: 50,
+      message: "抓取中: https://example.com",
+      updated_at: "2026-07-06T00:00:00.000Z",
+    });
+    const { app, baseUrl } = await startApp();
+    try {
+      const res = await fetch(`${baseUrl}/api/state`);
+      const body = await res.json();
+      expect(body.progress).toEqual({
+        stage: "fetch",
+        current: 12,
+        total: 50,
+        message: "抓取中: https://example.com",
+        updated_at: "2026-07-06T00:00:00.000Z",
+      });
     } finally {
       await app.close();
     }

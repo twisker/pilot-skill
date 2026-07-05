@@ -20,6 +20,7 @@ import {
 import { buildManualData, type ManualData } from "./lib/render";
 import { tripDir } from "../lib/workspace";
 import { track } from "../lib/telemetry";
+import { reportProgress } from "../lib/progress";
 
 // ---------------------------------------------------------------------------
 // PILOT export/word.ts —— 穷游手册 Word (.docx) 导出
@@ -535,6 +536,8 @@ export interface RunWordResult {
 }
 
 export async function runWord(tripId: string): Promise<RunWordResult> {
+  reportProgress(tripId, { stage: "export", current: 0, total: 1, message: "开始导出 Word" });
+
   const data = buildManualData(tripId);
   const doc = buildDocument(data);
 
@@ -546,6 +549,7 @@ export async function runWord(tripId: string): Promise<RunWordResult> {
   await writeFile(outPath, buffer);
 
   const bytes = statSync(outPath).size;
+  reportProgress(tripId, { stage: "export", current: 1, total: 1, message: `Word 导出完成: ${outPath}` });
   return { path: outPath, bytes };
 }
 

@@ -4,6 +4,7 @@ import ExcelJS from "exceljs";
 import { buildManualData, type ManualData, type ItineraryItem } from "./lib/render";
 import { tripDir } from "../lib/workspace";
 import { track } from "../lib/telemetry";
+import { reportProgress } from "../lib/progress";
 
 // ---------------------------------------------------------------------------
 // PILOT export/excel.ts —— 穷游手册 Excel 导出（4 sheet，对齐真实自驾出行记账格式）
@@ -393,6 +394,8 @@ export interface RunExcelResult {
 }
 
 export async function runExcel(tripId: string): Promise<RunExcelResult> {
+  reportProgress(tripId, { stage: "export", current: 0, total: 1, message: "开始导出 Excel" });
+
   const data = buildManualData(tripId);
 
   const workbook = new ExcelJS.Workbook();
@@ -406,6 +409,7 @@ export async function runExcel(tripId: string): Promise<RunExcelResult> {
   const outPath = path.join(outDir, `${tripId}-路书.xlsx`);
   await workbook.xlsx.writeFile(outPath);
 
+  reportProgress(tripId, { stage: "export", current: 1, total: 1, message: `Excel 导出完成: ${outPath}` });
   return { path: outPath };
 }
 

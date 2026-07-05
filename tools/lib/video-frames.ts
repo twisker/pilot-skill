@@ -62,7 +62,13 @@ function frameFileName(index: number): string {
 export async function extractFrames(
   videoPath: string,
   outDir: string,
-  opts: { duration: number; maxFrames: number; ffmpegBin?: string },
+  opts: {
+    duration: number;
+    maxFrames: number;
+    ffmpegBin?: string;
+    /** 每成功抽完一帧回调一次（1-based current, 总帧数）；供 video.ts 接入长任务进度上报（spec §10.9）。 */
+    onProgress?: (current: number, total: number) => void;
+  },
 ): Promise<string[]> {
   const ffmpegBin = opts.ffmpegBin ?? "ffmpeg";
   mkdirSync(outDir, { recursive: true });
@@ -89,6 +95,7 @@ export async function extractFrames(
       throw new Error(`ffmpeg 抽帧失败（第 ${i + 1} 帧，t=${timestamps[i]}s）: ${message}`);
     }
     frameNames.push(frameName);
+    opts.onProgress?.(i + 1, timestamps.length);
   }
   return frameNames;
 }

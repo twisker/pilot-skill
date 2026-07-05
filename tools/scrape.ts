@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { chromium, type Browser, type BrowserContextOptions } from "playwright";
 import { readJson, writeJson, tripDir, atomicWriteFileSync } from "./lib/workspace";
+import { reportProgress, truncateForLog } from "./lib/progress";
 import { mafengwoSite } from "./lib/sites/mafengwo";
 import { xhsSite, isXhsUrl, hasXhsCookie } from "./lib/sites/xhs";
 import { zhihuSite } from "./lib/sites/zhihu";
@@ -192,6 +193,12 @@ export async function runScrape(
   try {
     for (const entry of targets) {
       result.processed++;
+      reportProgress(tripId, {
+        stage: "fetch",
+        current: result.processed,
+        total: targets.length,
+        message: `抓取中: ${truncateForLog(entry.url)}`,
+      });
       const hash = sha1(entry.url);
       const selection = selectAdapter(entry.url);
 
