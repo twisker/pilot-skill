@@ -9,6 +9,7 @@ import {
   compareSemver,
   isNewer,
   isPubkeyConfigured,
+  PLACEHOLDER_PUBKEY,
   normalizeVersion,
   parseSemver,
   pickReleaseAssets,
@@ -167,9 +168,23 @@ describe("verifyRelease", () => {
 });
 
 describe("isPubkeyConfigured", () => {
-  it("占位常量 → false（未接线，自动升级应跳过）", () => {
-    expect(isPubkeyConfigured()).toBe(false);
-    expect(isPubkeyConfigured(RELEASE_PUBKEY_B64)).toBe(false);
+  it("占位串 → false（未接线，自动升级应跳过）", () => {
+    // 必须传**字面占位串**：早先这里传的是 RELEASE_PUBKEY_B64 常量，
+    // 而那正是函数默认参数值，于是「接线后仍判 false」的 bug 被测试掩盖了。
+    expect(isPubkeyConfigured(PLACEHOLDER_PUBKEY)).toBe(false);
+  });
+
+  it("回归：接线后 isPubkeyConfigured() 不得因默认参数而恒为 false", () => {
+    // 拓宽为 string：RELEASE_PUBKEY_B64 是字面量类型，直接与占位串比较会被
+    // TS2367 判定为无交集（编译期已能看出结果），反而失去运行时守门意义。
+    const wired: string = RELEASE_PUBKEY_B64;
+    if (wired === PLACEHOLDER_PUBKEY) {
+      expect(isPubkeyConfigured()).toBe(false); // 未接线阶段：安全跳过
+    } else {
+      // 已接线：**必须**为 true。早先的实现把 trimmed 与默认参数（即常量自身）
+      // 比较，此处会错误地返回 false，导致自升级永久误判「未接线」而静默跳过。
+      expect(isPubkeyConfigured()).toBe(true);
+    }
   });
 
   it("空串 / 空白 → false", () => {
@@ -318,8 +333,14 @@ describe("upgrade run —— 无网络降级与版本判定", () => {
   it("公钥未接线：不下载，reason=pubkey-not-configured", async () => {
     writeApp("1.0.14");
     const tarball = makeTarball("1.0.15");
-    // 不传 pubkey → 使用内嵌占位常量
-    const { deps, downloads, logLines } = harness({ remoteVersion: "1.0.15", tarball });
+    // 显式注入**占位串**来构造「未接线」状态，而不是依赖仓库当前的接线情况。
+    // 早先这里靠「不传 pubkey → 用内嵌常量」，一旦真接线（2026-09-24）该用例
+    // 就失去意义；测试应当自己决定状态，不该跟着仓库状态漂移。
+    const { deps, downloads, logLines } = harness({
+      remoteVersion: "1.0.15",
+      tarball,
+      pubkey: PLACEHOLDER_PUBKEY,
+    });
     const result = await main(["run"], deps);
     expect(result).toMatchObject({ newer: true, upgraded: false, reason: "pubkey-not-configured" });
     expect(downloads).toHaveLength(0);

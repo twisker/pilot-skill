@@ -21,13 +21,14 @@ export const RELEASES_API = "https://api.github.com/repos/twisker/pilot-skill/re
 /**
  * 内嵌发布公钥（Ed25519 raw 32 字节 base64）。
  *
- * ⚠️ 占位值，尚未接线。由产品负责人在**发布机**执行：
+ * ✅ 已于 2026-09-24 接线（发布机 = 产品负责人笔电，私钥存 ~/.pilot/keys/release.key，0600）。
+ * 换钥流程（换钥会让已发布版本的自动升级失效，非必要不要做）：
  *     npx tsx scripts/release.ts keygen --out ~/.pilot/keys/
  * 生成密钥对后，把公钥（raw base64）替换到本常量。
  * 私钥仅存发布机（~/.pilot/keys/），**绝不入库、绝不分发**。
  * 未替换前 isPubkeyConfigured() 为 false，upgrade 会安全跳过自动升级（不下载）。
  */
-export const RELEASE_PUBKEY_B64 = "REPLACE_WITH_RELEASE_PUBLIC_KEY_B64";
+export const RELEASE_PUBKEY_B64 = "kFCZKUXycerp1+yfh+tFoFkaK2xTJG1nPqnxIHnSQLE=";
 
 export interface ReleaseAsset {
   name: string;
@@ -116,10 +117,20 @@ export function pickReleaseAssets(
   };
 }
 
+/**
+ * 未接线时的占位值。
+ *
+ * ⚠️ 必须与**字面占位串**比较，而不是与 `RELEASE_PUBKEY_B64` 常量比较——
+ * 后者是 `isPubkeyConfigured` 的默认参数，一旦接线（常量变成真公钥），
+ * `trimmed === RELEASE_PUBKEY_B64` 会恒为 true，函数就永远返回 false，
+ * 导致自升级永久误判「未接线」而静默跳过（2026-09-24 接线时实测发现）。
+ */
+export const PLACEHOLDER_PUBKEY = "REPLACE_WITH_RELEASE_PUBLIC_KEY_B64";
+
 /** 公钥是否已接线（非占位、非空、且能被解析为合法 Ed25519 raw 公钥） */
 export function isPubkeyConfigured(pubkey: string = RELEASE_PUBKEY_B64): boolean {
   const trimmed = pubkey.trim();
-  if (trimmed.length === 0 || trimmed === RELEASE_PUBKEY_B64) return false;
+  if (trimmed.length === 0 || trimmed === PLACEHOLDER_PUBKEY) return false;
   try {
     publicKeyFromRawB64(trimmed);
     return true;
