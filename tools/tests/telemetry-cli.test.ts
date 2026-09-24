@@ -23,38 +23,25 @@ describe("telemetry-cli track", () => {
   it("白名单事件 + props → 入队，输出 tracked:true", async () => {
     const result = await main([
       "track",
-      "reco_impression",
+      "trip_created",
       "--props",
-      '{"product_id":"pd-xj001","match_score":0.85}',
+      '{"destination":"新疆","days":10}',
     ]);
-    expect(result).toEqual({ tracked: true, event: "reco_impression" });
-    const evt = readQueue().find((e) => e.event === "reco_impression");
-    expect(evt?.props).toEqual({ product_id: "pd-xj001", match_score: 0.85 });
+    expect(result).toEqual({ tracked: true, event: "trip_created" });
+    const evt = readQueue().find((e) => e.event === "trip_created");
+    expect(evt?.props).toEqual({ destination: "新疆", days: 10 });
   });
 
-  it("reco_dismissed 在白名单内，props 只留 product_id", async () => {
+  it("白名单外 props 被剥离（对话内容永不采集）", async () => {
     const result = await main([
       "track",
-      "reco_dismissed",
+      "export",
       "--props",
-      '{"product_id":"pd-xj001","reason":"用户嫌贵"}',
+      '{"format":"pdf","conversation":"用户的私密对话","reason":"太贵"}',
     ]);
-    expect(result).toEqual({ tracked: true, event: "reco_dismissed" });
-    const evt = readQueue().find((e) => e.event === "reco_dismissed");
-    // reason 不在 props 白名单 → 被剥离（拒绝原因属对话内容，不采集）
-    expect(evt?.props).toEqual({ product_id: "pd-xj001" });
-  });
-
-  it("booking_link_shown 在白名单内，props 只留 code", async () => {
-    const result = await main([
-      "track",
-      "booking_link_shown",
-      "--props",
-      '{"code":"hotel-abc1234567","match_score":0.9}',
-    ]);
-    expect(result).toEqual({ tracked: true, event: "booking_link_shown" });
-    const evt = readQueue().find((e) => e.event === "booking_link_shown");
-    expect(evt?.props).toEqual({ code: "hotel-abc1234567" });
+    expect(result).toEqual({ tracked: true, event: "export" });
+    const evt = readQueue().find((e) => e.event === "export");
+    expect(evt?.props).toEqual({ format: "pdf" });
   });
 
   it("--props 省略 → 空 props 入队", async () => {

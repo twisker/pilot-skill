@@ -5,55 +5,40 @@ import { randomUUID } from "node:crypto";
 import { atomicWriteFileSync } from "./workspace";
 
 // ---------------------------------------------------------------------------
-// PILOT 匿名遥测客户端库（spec §10.4a）
+// PILOT 匿名使用统计客户端库（2026-09-24 转免费项目后重定义）
+//
+// 目的只有一个：知道**有多少人在下载、安装、使用**，用于判断项目是否真的
+// 有人在用。不做任何商业变现。
 //
 // 隐私契约（收集什么 / 不收集什么）：
-//   - install_id：本地随机 UUID（~/.pilot/telemetry.json），不含任何身份信息，
-//     不与账号/邮箱/设备指纹关联
+//   - install_id：本地随机 UUID（~/.pilot/telemetry.json），唯一用途是「去重」，
+//     不含任何身份信息，不与账号/邮箱/设备指纹关联
 //   - 事件白名单（EVENT_PROPS，白名单外 track 直接 no-op）：
 //       install          安装/首次运行           props: 无
 //       trip_created     trip 创建               props: destination（目的地粗粒度，
 //                        城市/地区级字符串）、days（天数）。不带对话内容、
 //                        不带 intake 全文、不带人群/预算细节
 //       export           路书导出                props: format（docx/pdf/xlsx）
-//       reco_impression  产品推荐曝光            props: product_id、match_score、
-//                        scope（"trip"=窗口 1 整包 / "item"=⑥ item 级额外推荐，
-//                        可选）、item_ref（item 级时为 "<day>:<item name>"，可选）
-//       reco_dismissed   产品推荐被拒绝          props: product_id、scope、item_ref
-//                        （同上两可选字段；用户明确拒绝或冷淡回应后记录，
-//                        对应层级内不再推荐，spec §10.4b-3 两级频次纪律）
-//       booking_link_shown  booking 短链曝光（窗口 2，与产品推荐语义分离）
-//                        props: code（短码，取 affiliate_url 中 /r/ 后的段）
 //   - 关闭方式（任一即全局 no-op）：
 //       1) 环境变量 PILOT_TELEMETRY=off
 //       2) ~/.pilot/telemetry.json 的 enabled 置 false
 //
 // 上报机制：track() 只追加本地队列（~/.pilot/telemetry-queue.jsonl），
-// flush() 才批量 POST 到链接服务 /t。endpoint 读 config/pilot.json 的
-// telemetry.endpoint —— **当前默认 null = 只落盘不上报**，链接服务部署后
+// flush() 才批量 POST 到计数服务 /t。endpoint 读 config/pilot.json 的
+// telemetry.endpoint —— **当前默认 null = 只落盘不上报**，计数服务部署后
 // 才改为真实 URL。离线/失败容忍：POST 失败队列原样保留；队列超 1000 条
-// 丢最旧。track/flush 永不抛异常（遥测绝不能打断主流程）。
+// 丢最旧。track/flush 永不抛异常（统计绝不能打断主流程）。
 // ---------------------------------------------------------------------------
 
-export const TELEMETRY_EVENTS = [
-  "install",
-  "trip_created",
-  "export",
-  "reco_impression",
-  "reco_dismissed",
-  "booking_link_shown",
-] as const;
+export const TELEMETRY_EVENTS = ["install", "trip_created", "export"] as const;
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENTS)[number];
 
-/** 事件 → 允许的 props 键（与 services/link-service 服务端白名单一致） */
+/** 事件 → 允许的 props 键（服务端执行同一份白名单，二次过滤） */
 export const EVENT_PROPS: Record<TelemetryEventName, readonly string[]> = {
   install: [],
   trip_created: ["destination", "days"],
   export: ["format"],
-  reco_impression: ["product_id", "match_score", "scope", "item_ref"],
-  reco_dismissed: ["product_id", "scope", "item_ref"],
-  booking_link_shown: ["code"],
 };
 
 export const QUEUE_MAX = 1000;

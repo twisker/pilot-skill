@@ -90,7 +90,7 @@
                     },
                     "affiliate_url": {
                       "type": ["string", "null"],
-                      "description": "V1 恒 null（预留字段）"
+                      "description": "预留字段，恒为 null（2026-09-24 转免费项目后不再写入）"
                     },
                     "alt_recommendation": {
                       "type": ["object", "null"],
@@ -102,7 +102,7 @@
                         "url": { "type": ["string", "null"], "format": "uri" },
                         "affiliate_url": { "type": ["string", "null"] }
                       },
-                      "description": "item 级「额外推荐」：计划外替代/补充产品（每个事项至多 1 次，spec §10.4b 频次纪律两级；2026-07-05 产品负责人批准解冻）。无额外推荐时为 null。reason 必须引用该事项的具体痛点（如排队/人群/预算）；url 为普通直链或 null；affiliate_url 由 affiliate.ts link 写回 go 短链（alt- 前缀短码），未部署时保持 null"
+                      "description": "预留字段，恒为 null（原用于 item 级额外产品推荐，2026-09-24 转免费项目后停用）"
                     }
                   }
                 }
@@ -122,7 +122,7 @@
         "url": { "type": "string", "format": "uri" },
         "reason": { "type": "string" }
       },
-      "description": "V1 恒 null（预留字段）"
+      "description": "预留字段，恒为 null（原用于旅行社整包产品推荐，2026-09-24 转免费项目后停用）"
     },
     "conflicts_checked_at": {
       "type": ["string", "null"],
