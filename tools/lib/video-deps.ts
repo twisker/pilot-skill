@@ -6,11 +6,12 @@ import path from "node:path";
 // PILOT lib/video-deps.ts —— 视频依赖（yt-dlp/ffmpeg/ffprobe）跨平台探测（Task 21）
 //
 // 探测顺序：~/.pilot/bin/<name>[.exe] 优先（tools/setup-video.ts 一键安装落点）
-// → 找不到则回退裸命令名，交给 OS/PATH 解析（Windows 下 libuv 会按 PATHEXT
-// 补全 .exe/.cmd 后缀，无需我们手动拼）。
+// → 找不到则在 win32 上按 PATH + PATHEXT 显式解析成绝对路径（见 resolveFromPath；
+// Node/libuv 自己不做 PATHEXT 补全，PATH 上的 .cmd/.bat shim 用裸名 spawn 必然
+// 失败）→ 仍找不到才回退裸命令名交给 OS。
 //
 // 纯函数（不碰网络/不 spawn），供 video.ts 编排调用，也便于单测：注入
-// PILOT_HOME 与 existsSync 均可在测试里做到确定性。
+// PILOT_HOME、PATH 与 existsSync 均可在测试里做到确定性。
 // ---------------------------------------------------------------------------
 
 export function getPilotHome(env: NodeJS.ProcessEnv = process.env): string {
@@ -42,7 +43,40 @@ export function resolveBinaryPath(base: string, opts: ResolveOptions = {}): stri
   const platform = opts.platform ?? process.platform;
   const exists = opts.exists ?? existsSync;
   const bundled = path.join(pilotBinDir(env), exeName(base, platform));
-  return exists(bundled) ? bundled : base;
+  if (exists(bundled)) return bundled;
+  // win32：libuv 只尝试无后缀/.exe/.com，不读 PATHEXT，因此 PATH 上的 .cmd/.bat
+  // shim（npm / pipx / scoop 风格）用裸名 spawn 必然 ENOENT。这里显式解析成绝对
+  // 路径，调用方再经 planSpawn 包装执行。posix 保持原行为（裸名回退，交给
+  // execFile 的 PATH 查找），避免无谓地改变既有语义。
+  if (platform === "win32") {
+    return resolveFromPath(base, opts) ?? base;
+  }
+  return base;
+}
+
+/** win32 下 PATHEXT 未设置时的系统默认值 */
+const DEFAULT_PATHEXT = ".COM;.EXE;.BAT;.CMD";
+
+/**
+ * 在 PATH 中按 PATHEXT 查找裸命令名的绝对路径；找不到返回 undefined。
+ * posix 下等价于按 PATH 找同名可执行文件（不追加后缀）。
+ */
+export function resolveFromPath(base: string, opts: ResolveOptions = {}): string | undefined {
+  const env = opts.env ?? process.env;
+  const platform = opts.platform ?? process.platform;
+  const exists = opts.exists ?? existsSync;
+  const dirs = (env.PATH ?? "").split(platform === "win32" ? ";" : ":").filter(Boolean);
+  const suffixes =
+    platform === "win32"
+      ? ["", ...(env.PATHEXT ?? DEFAULT_PATHEXT).split(";").filter(Boolean)]
+      : [""];
+  for (const dir of dirs) {
+    for (const suffix of suffixes) {
+      const candidate = path.join(dir, base + suffix);
+      if (exists(candidate)) return candidate;
+    }
+  }
+  return undefined;
 }
 
 export interface VideoBinaries {

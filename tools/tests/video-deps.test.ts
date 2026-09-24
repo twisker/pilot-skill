@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import path from "node:path";
-import { getPilotHome, pilotBinDir, exeName, resolveBinaryPath, resolveDefaultBinaries, planSpawn } from "../lib/video-deps";
+import { getPilotHome, pilotBinDir, exeName, resolveBinaryPath, resolveFromPath, resolveDefaultBinaries, planSpawn } from "../lib/video-deps";
 
 // ---------------------------------------------------------------------------
 // lib/video-deps.ts —— 视频依赖跨平台探测（Task 21）
@@ -100,6 +100,80 @@ describe("resolveDefaultBinaries", () => {
 // npm/pipx/scoop 风格的 .cmd shim。planSpawn 是纯函数，win32 分支可在
 // 任意开发机上断言，无需真实 Windows。
 // ---------------------------------------------------------------------------
+
+describe("resolveFromPath", () => {
+  it("win32：按 PATHEXT 在 PATH 里找到 .cmd shim（libuv 自己不做这件事）", () => {
+    const target = path.join("C:\\tools", "yt-dlp.CMD");
+    const found = resolveFromPath("yt-dlp", {
+      platform: "win32",
+      env: { PATH: "C:\\Windows;C:\\tools", PATHEXT: ".COM;.EXE;.BAT;.CMD" },
+      exists: (p) => p === target,
+    });
+    expect(found).toBe(target);
+  });
+
+  it("win32：PATH 中靠前的目录优先", () => {
+    const first = path.join("C:\\a", "yt-dlp.EXE");
+    const second = path.join("C:\\b", "yt-dlp.EXE");
+    const found = resolveFromPath("yt-dlp", {
+      platform: "win32",
+      env: { PATH: "C:\\a;C:\\b", PATHEXT: ".EXE;.CMD" },
+      exists: (p) => p === first || p === second,
+    });
+    expect(found).toBe(first);
+  });
+
+  it("win32：PATHEXT 未设置时用系统默认集（含 .CMD）", () => {
+    const target = path.join("C:\\tools", "yt-dlp.CMD");
+    const found = resolveFromPath("yt-dlp", {
+      platform: "win32",
+      env: { PATH: "C:\\tools" },
+      exists: (p) => p === target,
+    });
+    expect(found).toBe(target);
+  });
+
+  it("win32：找不到时返回 undefined", () => {
+    expect(
+      resolveFromPath("yt-dlp", {
+        platform: "win32",
+        env: { PATH: "C:\\tools", PATHEXT: ".EXE" },
+        exists: () => false,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("posix：按 ':' 切分 PATH，不追加后缀", () => {
+    const target = "/usr/local/bin/ffmpeg";
+    const found = resolveFromPath("ffmpeg", {
+      platform: "linux",
+      env: { PATH: "/usr/bin:/usr/local/bin" },
+      exists: (p) => p === target,
+    });
+    expect(found).toBe(target);
+  });
+});
+
+describe("resolveBinaryPath 的 PATH 回退", () => {
+  it("win32：bundle 缺失时解析 PATH 上的 .cmd 并返回绝对路径（供 planSpawn 包装）", () => {
+    const target = path.join("C:\\tools", "yt-dlp.CMD");
+    const resolved = resolveBinaryPath("yt-dlp", {
+      platform: "win32",
+      env: { PILOT_HOME: "C:\\Users\\me\\.pilot", PATH: "C:\\tools", PATHEXT: ".CMD" },
+      exists: (p) => p === target,
+    });
+    expect(resolved).toBe(target);
+  });
+
+  it("posix：bundle 缺失时仍回退裸命令名（既有行为不变）", () => {
+    const resolved = resolveBinaryPath("ffmpeg", {
+      platform: "darwin",
+      env: { PILOT_HOME: "/tmp/none", PATH: "/usr/local/bin" },
+      exists: () => false,
+    });
+    expect(resolved).toBe("ffmpeg");
+  });
+});
 
 describe("planSpawn", () => {
   it("非 win32 原样透传，不引入 shell", () => {
