@@ -222,16 +222,17 @@ function writeApp(
 }
 
 /** 用真实 tar 造一个含 VERSION + skill/SKILL.md 的发布包 */
-function makeTarball(version: string): Buffer {
-  const stage = path.join(testHome, `stage-${version}`);
+function makeTarball(version: string, { withVersion = true } = {}): Buffer {
+  const stage = path.join(testHome, `stage-${version}${withVersion ? "" : "-noversion"}`);
   mkdirSync(path.join(stage, "skill"), { recursive: true });
-  writeFileSync(path.join(stage, "VERSION"), `${version}\n`);
+  if (withVersion) writeFileSync(path.join(stage, "VERSION"), `${version}\n`);
   writeFileSync(path.join(stage, "skill", "SKILL.md"), `# PILOT ${version}\n`);
   // 刻意回避盘符：包体走 stdout（`-f -`）+ cwd 设为 stage 且 -C 用相对 `.`。
   // Windows 上 Git for Windows 的 GNU tar 会把 `-f C:\...` 的 `C:` 当成远程主机名
   // （CI 实测 "Cannot connect to C: resolve failed"），而 bsdtar 不支持
   // `--force-local`，所以只能从调用形态上规避——与生产代码 extractTarball 同源。
-  const result = spawnSync("tar", ["-czf", "-", "-C", ".", "VERSION", "skill"], {
+  const entries = withVersion ? ["VERSION", "skill"] : ["skill"];
+  const result = spawnSync("tar", ["-czf", "-", "-C", ".", ...entries], {
     cwd: stage,
     maxBuffer: 64 * 1024 * 1024,
   });
@@ -494,13 +495,12 @@ describe("解压结果校验", () => {
 
   it("解压结果缺 VERSION → 中止且不解压替换", async () => {
     const app = writeApp("1.0.14");
-    // 造一个只有 skill/ 的错包
-    const stage = path.join(testHome, "bad-stage");
-    mkdirSync(path.join(stage, "skill"), { recursive: true });
-    writeFileSync(path.join(stage, "skill", "SKILL.md"), "# x\n");
-    const tarPath = path.join(testHome, "pilot-skill-1.0.15.tar.gz");
-    spawnSync("tar", ["-czf", tarPath, "-C", stage, "skill"], { encoding: "utf-8" });
-    const { deps } = signedHarness("1.0.15", readFileSync(tarPath));
+    // 造一个只有 skill/、**没有 VERSION** 的错包。
+    // 走 makeTarball 同一条「无盘符」tar 代码路径：此前这里直接调 tar 传绝对
+    // 路径，在 Windows（Git for Windows 的 GNU tar 把 `-f C:\…` 的 `C:` 当远程
+    // 主机名）上 tar 静默失败，随后 readFileSync 报 ENOENT，掩盖了真正原因。
+    const tarball = makeTarball("1.0.15", { withVersion: false });
+    const { deps } = signedHarness("1.0.15", tarball);
 
     await expect(main(["run"], deps)).rejects.toThrow(/空包|错包/);
     expect(readFileSync(path.join(app, "VERSION"), "utf-8").trim()).toBe("1.0.14");
