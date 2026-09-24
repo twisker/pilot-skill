@@ -509,10 +509,26 @@ npx tsx ~/.pilot/app/tools/export/word.ts run --trip <trip-id> --format docx
 | `npx tsx ~/.pilot/app/tools/export/<pdf\|excel\|word>.ts run --trip <id> --format <fmt>` | 三格式路书导出 | ✅ |
 | `npx tsx ~/.pilot/app/tools/cookies.ts setup [--site <名>]` / `status` | 引导式 cookie 导出 / 各站点 cookie 现状表 | ✅ |
 | `npx tsx ~/.pilot/app/tools/telemetry-cli.ts track <event> [--props '<json>']` / `flush` | 匿名统计入队（白名单强制）/ 批量上报 | ✅ |
+| `npx tsx ~/.pilot/app/tools/upgrade.ts check` / `run` | 自升级：查 GitHub Releases → 下载 → Ed25519 验签 → 替换 `~/.pilot/app`（失败自动回滚） | ✅ |
 
 **长任务体验（⓪，spec §10.9）**：`scrape.ts run` / `video.ts prep` / `distill.ts validate|dedupe|score` / `export/*.ts run` 运行期间会持续调用 `tools/lib/progress.ts` 的 `reportProgress()`，原子写 `<trip>/progress.json`（stage/current/total/message/updated_at）并向 stderr 打一行 `[stage current/total] message`；`total` 未知（如视频下载阶段）时落盘为 `null`。`server.ts` 的 `/api/state` 聚合该文件，本地 UI（①1.3）顶部渲染九阶段 stepper + 进度条/沙漏，10 分钟无更新视为空闲。不需要单独调用，工具内部已接好。
 
 全部工具已交付。
+
+### 自升级（`tools/upgrade.ts`，v5.0）
+
+用户问「怎么升级 / 有没有新版本 / 更新一下」时用它，**不要自作主张在每次会话开始就联网检查**（会给每次对话加延迟）：
+
+```bash
+npx tsx ~/.pilot/app/tools/upgrade.ts check    # 只查版本，不下载
+npx tsx ~/.pilot/app/tools/upgrade.ts run      # 查 → 下载 → 验签 → 替换
+```
+
+- 全程可回滚：替换是改名交换（`~/.pilot/app` → `app.prev-<旧版>`），任何一步失败都退回旧版；用户的 `.env` 与 `tools/node_modules` 会跨版本保留
+- **验签失败一律拒用**（Ed25519 detached，公钥内嵌在 `tools/lib/release.ts`），绝不解压未验签的包
+- 网络失败 / GitHub API 限流 → 降级为提示，不阻塞、不报错
+- 发布公钥未接线时（`RELEASE_PUBKEY_B64` 仍是占位）会**安全跳过**自动升级并说明原因——这是预期行为，不是故障
+- 把工具的 stdout 如实转告用户即可，无需解释验签细节
 
 ## 附录 B：references
 
