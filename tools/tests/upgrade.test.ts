@@ -227,10 +227,19 @@ function makeTarball(version: string): Buffer {
   mkdirSync(path.join(stage, "skill"), { recursive: true });
   writeFileSync(path.join(stage, "VERSION"), `${version}\n`);
   writeFileSync(path.join(stage, "skill", "SKILL.md"), `# PILOT ${version}\n`);
-  const tarPath = path.join(testHome, `pilot-skill-${version}.tar.gz`);
-  const result = spawnSync("tar", ["-czf", tarPath, "-C", stage, "VERSION", "skill"], { encoding: "utf-8" });
-  if (result.status !== 0) throw new Error(`tar 造包失败: ${result.stderr}`);
-  return readFileSync(tarPath);
+  // 刻意回避盘符：包体走 stdout（`-f -`）+ cwd 设为 stage 且 -C 用相对 `.`。
+  // Windows 上 Git for Windows 的 GNU tar 会把 `-f C:\...` 的 `C:` 当成远程主机名
+  // （CI 实测 "Cannot connect to C: resolve failed"），而 bsdtar 不支持
+  // `--force-local`，所以只能从调用形态上规避——与生产代码 extractTarball 同源。
+  const result = spawnSync("tar", ["-czf", "-", "-C", ".", "VERSION", "skill"], {
+    cwd: stage,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.status !== 0) {
+    throw new Error(`tar 造包失败: ${result.stderr?.toString() ?? ""}`);
+  }
+  if (!result.stdout || result.stdout.length === 0) throw new Error("tar 造包结果为空");
+  return result.stdout;
 }
 
 function releaseJson(version: string): string {

@@ -59,6 +59,9 @@ const USER_STATE_RELS = [".env", path.join("tools", "node_modules")];
 
 export class CliError extends Error {}
 
+/** tar 子进程 stdout/stderr 缓冲上限（发布包只有几 MB，64MB 足够且不至于失控） */
+const TAR_MAX_BUFFER = 64 * 1024 * 1024;
+
 export type UpgradeReason =
   | "upgraded"
   | "already-latest"
@@ -148,12 +151,28 @@ export function resolveAppRoot(extractDir: string): string | null {
  */
 export function extractTarball(tarballPath: string, destDir: string): void {
   mkdirSync(destDir, { recursive: true });
-  const result = spawnSync("tar", ["-xzf", tarballPath, "-C", destDir], {
-    encoding: "utf-8",
-    shell: process.platform === "win32",
+  // 调用形态刻意回避「盘符」：用 `-f -` 把包体从 stdin 喂进去，并把 -C 传成
+  // **相对**路径（cwd = 包所在目录）。
+  // 原因：Windows 上 Git for Windows 提供的是 GNU tar，它会把 `-f C:\...` 里的
+  // `C:` 当成远程主机名（实测报错 "Cannot connect to C: resolve failed"）；而
+  // bsdtar 不支持 `--force-local`（实测 "Option --force-local is not supported"），
+  // 无法用该开关兜底。相对路径 + stdin 对 GNU tar / bsdtar / Windows tar.exe
+  // 三种实现都安全。
+  const cwd = path.dirname(tarballPath);
+  const relDest = path.relative(cwd, destDir) || ".";
+  if (path.isAbsolute(relDest)) {
+    throw new CliError(
+      `解压目标与包体不在同一卷下，无法以相对路径调用 tar（避免 Windows 盘符被 GNU tar 误判为远程主机）: ${destDir}`,
+    );
+  }
+  const result = spawnSync("tar", ["-xzf", "-", "-C", relDest], {
+    cwd,
+    input: readFileSync(tarballPath),
+    maxBuffer: TAR_MAX_BUFFER,
   });
   if (result.status !== 0) {
-    throw new CliError(`解压失败（tar -xzf，退出码 ${result.status ?? "null"}）: ${result.stderr ?? ""}`.trim());
+    const stderr = result.stderr ? result.stderr.toString() : "";
+    throw new CliError(`解压失败（tar -xzf，退出码 ${result.status ?? "null"}）: ${stderr}`.trim());
   }
 }
 
