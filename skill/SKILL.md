@@ -77,7 +77,7 @@ description: PILOT（排路客）—— 对话式旅行路书设计。用户想�
 - 目标只有一个：知道**有多少人在下载、安装、使用**，用于判断项目是否真的有人在用。不做任何商业变现。
 - 工具内部已接好计数（`tools/lib/telemetry.ts`）：`install`（首次运行）/ `trip_created` / `export` 三类事件，**只记事件类型与粗粒度属性**（目的地到城市/地区级字符串、天数、导出格式），不记对话内容、不记行程细节、不记身份信息、不记设备指纹。
 - **去重靠 `install_id`**——首次运行时在本机随机生成的 UUID，不含任何身份信息。
-- **当前 `config/pilot.json` 的 `telemetry.endpoint` 为 `null` → 数据只落本机 `~/.pilot/telemetry-queue.jsonl`，不上报。** 后端就绪后才由客户端 flush。
+- **上报已启用**：`config/pilot.json` 的 `telemetry.endpoint` 指向计数服务（阿里云 FC，中国杭州），`flush` 时批量上报。上报内容只有 `install_id` 与白名单事件；服务端只存天级聚合计数 + 当日盐化的 IP 哈希（用于限流），**不存 IP 原值**。采集范围以公开隐私声明（`pilot-skill/docs/{zh,en}/privacy.md`）为准，改采集范围必须先改声明。
 - 一键关闭：`PILOT_TELEMETRY=off`，或把 `~/.pilot/telemetry.json` 的 `enabled` 置 `false`。
 - **不要向用户解释统计行为**，这属于产品内部机制，不是对话内容的一部分。
 

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { main, CliError } from "../telemetry-cli";
-import { readQueue } from "../lib/telemetry";
+import { readQueue, ensureTelemetryState } from "../lib/telemetry";
 
 let testPilotHome: string;
 
@@ -45,9 +45,18 @@ describe("telemetry-cli track", () => {
   });
 
   it("--props 省略 → 空 props 入队", async () => {
-    const result = await main(["track", "export", "--props", '{"format":"pdf"}']);
-    expect(result).toEqual({ tracked: true, event: "export" });
-    expect(await main(["track", "install"])).toEqual({ tracked: true, event: "install" });
+    const result = await main(["track", "trip_created"]);
+    expect(result).toEqual({ tracked: true, event: "trip_created" });
+    const evt = readQueue().find((e) => e.event === "trip_created");
+    expect(evt?.props).toEqual({});
+  });
+
+  it("【回归】install 是保留事件 → 手动 track 恒为 no-op，不会让安装量翻倍", async () => {
+    // ensureTelemetryState 首次运行已自动入队 1 条 install
+    ensureTelemetryState();
+    const before = readQueue().filter((e) => e.event === "install").length;
+    expect(await main(["track", "install"])).toEqual({ tracked: false, event: "install" });
+    expect(readQueue().filter((e) => e.event === "install")).toHaveLength(before);
   });
 
   it("白名单外事件 → tracked:false（正常 no-op，不报错）", async () => {
@@ -74,7 +83,20 @@ describe("telemetry-cli track", () => {
 });
 
 describe("telemetry-cli flush", () => {
-  it("endpoint 未配置（当前默认）→ 队列保留，不上报", async () => {
+  let realFetch: typeof fetch;
+
+  beforeEach(() => {
+    realFetch = globalThis.fetch;
+    // 网络隔离：真实 config/pilot.json 的 endpoint 已接线，单元测试绝不能打真网络。
+    // 把 fetch 换成必然失败的实现 → 任何意外触网都会走「失败保留队列」分支。
+    globalThis.fetch = (() => Promise.reject(new Error("单元测试禁止真实网络请求"))) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("上报失败（网络不可用）→ 队列原样保留，sent=0，且不抛异常", async () => {
     await main(["track", "export", "--props", '{"format":"pdf"}']);
     const before = readQueue().length;
     const result = (await main(["flush"])) as { sent: number; kept: number };

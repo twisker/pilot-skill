@@ -30,7 +30,7 @@ Every day of the itinerary traces back to a specific day in a specific real trav
 - **Map companion**: a local read-only page (timeline / map / reference-travelogue card wall) that auto-refreshes in the browser (via SSE) whenever the itinerary file changes, using a Tianditu basemap; the map links every located stop into one continuous route in order (within a day and across days, color-coded per day, straight-line segments)
 - **Three-format itinerary book**: Excel (4 sheets, with cost formulas and an expense-log template) / PDF / Word, structured to match how experienced travelers actually use a paper itinerary book on the road
 - **Fully local**: all data is written to `~/.pilot/workspace/`, cookies stay on your machine only, zero cloud dependency
-- **Transparent anonymous statistics with a one-switch opt-out**: event counts and coarse destinations only — never conversation content or identity, and nothing is uploaded by default (`PILOT_TELEMETRY=off` disables it globally) — see the [privacy statement](https://twisker.github.io/pilot-skill/en/privacy.html)
+- **Transparent anonymous statistics with a one-switch opt-out**: event counts and coarse destinations only — never conversation content, identity, or device fingerprints (`PILOT_TELEMETRY=off` disables it globally) — see the [privacy statement](https://twisker.github.io/pilot-skill/en/privacy.html)
 
 ## Screenshots
 

@@ -181,8 +181,15 @@ describe("readTelemetryEndpoint", () => {
     expect(readTelemetryEndpoint(p)).toBe("https://go-cn.example.cn/t");
   });
 
-  it("项目默认 config/pilot.json 当前 endpoint 为 null（默认不上报）", () => {
-    expect(readTelemetryEndpoint()).toBeNull();
+  it("项目默认 config/pilot.json 已接线真实上报端点（v5.0 计数服务，https + /t）", () => {
+    const endpoint = readTelemetryEndpoint();
+    expect(endpoint).not.toBeNull();
+    expect(endpoint).toMatch(/^https:\/\/[^\s]+\/t$/);
+  });
+
+  it("【回归】默认端点不得是占位值（null/localhost/example）", () => {
+    const endpoint = readTelemetryEndpoint() as string;
+    expect(endpoint).not.toMatch(/localhost|127\.0\.0\.1|example\.(com|cn|invalid)/);
   });
 });
 

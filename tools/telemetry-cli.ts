@@ -10,7 +10,10 @@ import { track, flush } from "./lib/telemetry";
 //   npx tsx tools/telemetry-cli.ts flush
 //
 // track 输出 {"tracked":true|false,"event":"<名>"}：
-//   - tracked=false 含义为「遥测关闭 / 事件不在白名单」，属正常 no-op，exit 0
+//   - tracked=false 含义为「遥测关闭 / 事件不在白名单 / 该事件为保留事件」，
+//     属正常 no-op，exit 0。注意 `install` 是**保留事件**：它只在首次运行生成
+//     install_id 时自动入队一次，手动 `track install` 恒为 no-op（否则会把
+//     安装量算成两倍）
 //   - --props 不是合法 JSON 对象 → exit 1（调用方拼错了命令，应该被发现）
 // 遥测本身永不打断主流程：track/flush 内部不抛异常。
 // ---------------------------------------------------------------------------

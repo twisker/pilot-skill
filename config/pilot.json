@@ -51,6 +51,6 @@
     "tile_url": null
   },
   "telemetry": {
-    "endpoint": null
+    "endpoint": "https://pilot-counter-fttorogsao.cn-hangzhou.fcapp.run/t"
   }
 }

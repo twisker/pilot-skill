@@ -180,11 +180,17 @@ function filterProps(
 /**
  * 记录一条事件到本地队列。白名单外事件 / 遥测关闭 → no-op。
  * 永不抛异常。返回是否实际入队（便于测试断言）。
+ *
+ * `install` 是**保留事件**：它只在 `ensureTelemetryState()` 首次生成 install_id
+ * 时自动入队一次（安装 = 首次运行）。若允许显式 track("install")，调用方在
+ * 新机器上会让它和自动那条各入队一次，安装量直接翻倍——所以这里直接拒绝，
+ * 返回 false（与「白名单外事件」同样的 no-op 语义）。
  */
 export function track(event: string, props?: Record<string, unknown>): boolean {
   try {
     if (!telemetryEnabled()) return false;
     if (!(TELEMETRY_EVENTS as readonly string[]).includes(event)) return false;
+    if (event === "install") return false;
     const name = event as TelemetryEventName;
     ensureTelemetryState();
     appendToQueue({

@@ -23,7 +23,7 @@ Repo home & install instructions: [github.com/twisker/pilot-skill](https://githu
 | [配置参考](https://twisker.github.io/pilot-skill/zh/guide-config.html) | `config/pilot.json` 全字段说明（源路由 / 精选数量 / 地图等） |
 | [路书导出说明](https://twisker.github.io/pilot-skill/zh/guide-export.html) | 四段结构、Excel 四 sheet、模板 sheet 用法 |
 | [常见问题 FAQ](https://twisker.github.io/pilot-skill/zh/faq.html) | 抓取被拦 / 无 key 地图 / 如何更新 等 |
-| [隐私声明](https://twisker.github.io/pilot-skill/zh/privacy.html) | 匿名统计收集什么/不收集什么/如何一键关闭（当前默认不上报） |
+| [隐私声明](https://twisker.github.io/pilot-skill/zh/privacy.html) | 匿名统计收集什么/不收集什么/数据存放地/如何一键关闭 |
 
 ### 一分钟了解主链路
 
