@@ -340,6 +340,8 @@ npx tsx ~/.pilot/app/tools/distill.ts index --trip <trip-id> --keep 5
    产出 `raw/video-<sha1>/frame-*.jpg` + `manifest.json`。exit 1 报缺 yt-dlp/ffmpeg 时，把安装指引转告用户（`npx tsx ~/.pilot/app/tools/setup-video.ts install --yes`，跨平台一键下载静态二进制到 `~/.pilot/bin`，无需 brew/winget），用户不装则本轮跳过。
    **并行落点（⓪.3）**：本命令用后台执行（`run_in_background`）发起，下载+抽帧可能耗时数十秒到数分钟；发起后**不要空等**——可以继续跑④对之前已到手的文字素材做 taste_score 评分或其它支线，命令完成后再回收这条视频的结果。工具运行期间持续写 `progress.json`（阶段 `video`：downloading→frames i/N→manifest），终端与本地 UI 都能看到进度，告知用户时按⓪.2 的三件事说清楚。
 3. 每条视频同样派**一个子代理**：Read manifest.json + 逐帧 Read 图片 → 按 3.2 同规则生成 travelogue（`media_type:"video"`，`fetch_quality` 按 manifest 信息定）→ 落盘 → 只回 id+状态。主会话**不看帧**。
+   - **`frame_times` 与 `frames` 一一对应**：`frames[i]` 是片子第 `frame_times[i]` 秒的画面。**务必在派子代理时把这一点说清楚**，让它把画面内容锚定到时间轴并按时间顺序组织（「第 12 秒那段盘山路」远胜于「某一帧」。没有这个映射，逐帧理解就退化成看图说话）。
+   - **切镜成功时** manifest 还会多出 `shots`（镜头区间）与 `pacing`（节奏指标，含 `shot_count` / `avg_shot_s` / `cuts_per_minute` / `pacing_style`）：`pacing_style` 为 `slow`/`medium`/`fast`，可初判片子形态——`slow` 多是风光长镜（信息密度低，适合提炼路线与停留点），`fast` 多是快切混剪（节奏密，适合提炼活动与打卡点）。这些字段**只在场景检测成功时存在**，缺失是正常降级（工具已回退均匀抽帧），**不要当成错误也不要向用户解释**。
 4. 成功后把该 pick 条目 `status` 改 `"scraped"`，失败改 `"failed"`。
 5. 有新增 travelogue 时**重跑 4.1 → 4.2（只评新条目）→ 4.3**合并精选。
 6. **降级**：工期紧或下载失败 → `npx tsx ~/.pilot/app/tools/video.ts prep --url <视频URL> --trip <trip-id> --meta-only`（只取标题/简介，fetch_quality=summary-only）；再不行整体放弃视频轮，向用户说明。

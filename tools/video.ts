@@ -6,7 +6,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import { tripDir, writeJson } from "./lib/workspace";
 import { cookieFilePath } from "./lib/sites/cookies";
-import { probeDuration, extractFrames } from "./lib/video-frames";
+import { probeDuration, extractFrames, computeFrameTimestamps, detectShotBoundaries, shotBoundariesFromSceneChanges, timestampsPerShot, pacingProfile, type Shot, type PacingProfile } from "./lib/video-frames";
 import { storageStateToNetscape, type StorageState } from "./lib/cookie-convert";
 import { resolveDefaultBinaries, planSpawn, type VideoBinaries } from "./lib/video-deps";
 import { reportProgress, truncateForLog } from "./lib/progress";
@@ -14,10 +14,11 @@ import { reportProgress, truncateForLog } from "./lib/progress";
 const execFileAsync = promisify(execFile);
 
 // ---------------------------------------------------------------------------
-// PILOT video.ts —— 视频预处理（yt-dlp 下载 + ffmpeg 均匀抽帧 + manifest）
+// PILOT video.ts —— 视频预处理（yt-dlp 下载 + 切镜/均匀抽帧 + manifest）
 //
 //   prep --url <u> --trip <id> [--max-frames N]
-//     yt-dlp 下载 720p 上限视频 → ffprobe 拿时长 → ffmpeg 均匀抽 N 帧
+//     yt-dlp 下载 720p 上限视频 → ffprobe 拿时长 → 场景检测切镜 →
+//     按镜头抽 N 帧（每镜至少 1 帧；检测失败则回退按时长均匀抽 N 帧）
 //     → raw/video-<sha1(url)>/{frame-001.jpg,...,manifest.json}
 //     → 抽帧完成后删除 source.mp4（磁盘纪律，帧留着）
 //
@@ -96,6 +97,17 @@ export interface Manifest {
   frames: string[];
   description: string;
   title?: string;
+  /** 切镜结果（仅场景检测成功时写入；降级时缺省，保持旧 manifest 形状） */
+  shots?: Shot[];
+  /** 节奏指标（与 shots 同进同出，作为 AI 的「有锚点时间轴」摘要） */
+  pacing?: PacingProfile;
+  /**
+   * 与 `frames` **一一对应**的抽帧时刻（秒，升序）。
+   * 没有它，`frames[i]` 就无法对齐到 `shots` 里的某个镜头，「有锚点时间轴」
+   * 也就断了——子代理只能看到 frame-007.jpg 却不知道它在片子哪一秒。
+   * 均匀抽帧与按镜头抽帧两条路径都会写它。
+   */
+  frame_times?: number[];
 }
 
 function sha1(input: string): string {
@@ -209,6 +221,11 @@ export interface PrepOptions {
   maxFrames?: number;
   metaOnly?: boolean;
   binaries?: Binaries;
+  /**
+   * 注入场景检测实现（默认 lib/video-frames.detectShotBoundaries）。
+   * 仅供单测注入「失败/成功」两种场景，验证降级路径与切镜接入；生产不传。
+   */
+  detectSceneChanges?: (videoPath: string, ffmpegBin: string) => Promise<number[]>;
 }
 
 export async function runPrep(tripId: string, url: string, opts: PrepOptions = {}): Promise<Manifest> {
@@ -274,10 +291,46 @@ export async function runPrep(tripId: string, url: string, opts: PrepOptions = {
       const meta = await ytDlpDownload(binaries.ytDlp, url, sourcePath, cookieArgs);
 
       const duration = await probeDuration(sourcePath, binaries.ffprobe);
+
+      // ① 切镜：场景检测 → 镜头区间 → 按镜头分配抽帧时间点 + 节奏指标。
+      //    「按镜头取帧」取代均匀抽帧（参考 docs/recon/openmontage-recon.md）：
+      //    均匀抽帧会整段跳过短镜头，切镜能保证每个镜头至少 1 帧。
+      //    硬性红线：这里任何失败（ffmpeg 报错 / 无 select 滤镜 / 解析不出）都
+      //    只打一行 stderr 后回退下方均匀抽帧，绝不让视频环节整体失败。
+      const detect = opts.detectSceneChanges ?? detectShotBoundaries;
+      let shots: Shot[] | undefined;
+      let pacing: PacingProfile | undefined;
+      let frameTimestamps: number[] | undefined;
+      try {
+        reportProgress(tripId, {
+          stage: "video",
+          current: null,
+          total: null,
+          message: `场景检测中: ${truncateForLog(url)}`,
+        });
+        const changes = await detect(sourcePath, binaries.ffmpeg);
+        const detectedShots = shotBoundariesFromSceneChanges(changes, duration);
+        const shotTimestamps = timestampsPerShot(detectedShots, maxFrames);
+        if (shotTimestamps.length === 0) throw new Error("按镜头分配抽帧时间点为空");
+        shots = detectedShots;
+        pacing = pacingProfile(detectedShots, duration);
+        frameTimestamps = shotTimestamps;
+        reportProgress(tripId, {
+          stage: "video",
+          current: null,
+          total: null,
+          message: `切镜完成: ${detectedShots.length} 个镜头，按镜头抽 ${shotTimestamps.length} 帧`,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`[video] 场景检测不可用，回退均匀抽帧: ${message}\n`);
+      }
+
       const frames = await extractFrames(sourcePath, videoDir, {
         duration,
         maxFrames,
         ffmpegBin: binaries.ffmpeg,
+        timestamps: frameTimestamps,
         onProgress: (current, total) => {
           reportProgress(tripId, {
             stage: "video",
@@ -288,12 +341,20 @@ export async function runPrep(tripId: string, url: string, opts: PrepOptions = {
         },
       });
 
+      // 实际用到的抽帧时刻：切镜成功用按镜头分配的那组，降级用均匀那组。
+      // 两条路径都记进 manifest，保证 frames[i] ↔ frame_times[i] ↔ shots 可对齐。
+      const effectiveTimes = frameTimestamps ?? computeFrameTimestamps(duration, maxFrames);
+      const frameTimes = effectiveTimes.slice(0, frames.length);
+
       const manifest: Manifest = {
         url,
         duration,
         frames,
+        ...(frameTimes.length === frames.length ? { frame_times: frameTimes } : {}),
         description: meta.description ?? "",
         ...(meta.title ? { title: meta.title } : {}),
+        // 只有切镜成功（shots 与 pacing 成对存在）才加切镜字段；降级保持旧行为
+        ...(shots && pacing ? { shots, pacing } : {}),
       };
       writeJson(tripId, `${videoRelDir}/manifest.json`, manifest);
       reportProgress(tripId, {

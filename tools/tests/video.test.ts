@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, chmodSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createTrip, readJson } from "../lib/workspace";
@@ -32,6 +33,11 @@ import {
 // ---------------------------------------------------------------------------
 
 const HAS_FFMPEG = checkBinary("ffmpeg") && checkBinary("ffprobe");
+
+/** manifest 目录名用的 url sha1（与 video.ts 同算法） */
+function sha1Hex(input: string): string {
+  return createHash("sha1").update(input).digest("hex");
+}
 
 let fixtureDir: string;
 let fixtureVideoPath: string;
@@ -638,6 +644,111 @@ describe.skipIf(!HAS_FFMPEG)("video.ts: prep 全流程（fake yt-dlp 下载 + �
       delete process.env.FAKE_YTDLP_FAIL;
     }
   }, 15000);
+});
+
+// ---------------------------------------------------------------------------
+// 视频理解增强：runPrep 切镜接入 + 降级路径（Task: 按镜头取帧）
+//
+// 场景检测是「增益」不是「依赖」：注入成功实现 → manifest 多出 shots/pacing；
+// 注入失败实现 → 打一行 stderr 后回退均匀抽帧，manifest 保持旧的 5 字段形状。
+// ---------------------------------------------------------------------------
+
+describe.skipIf(!HAS_FFMPEG)("video.ts: runPrep 切镜接入与降级", () => {
+  let stubDir: string;
+  let fakeYtDlp: string;
+
+  beforeEach(() => {
+    stubDir = mkdtempSync(path.join(tmpdir(), "pilot-fake-ytdlp-shots-"));
+    fakeYtDlp = writeFakeYtDlp(stubDir);
+    process.env.FAKE_YTDLP_SOURCE = fixtureVideoPath;
+    process.env.FAKE_YTDLP_META = JSON.stringify({ title: "切镜测试视频", description: "切镜测试简介" });
+  });
+
+  afterEach(() => {
+    delete process.env.FAKE_YTDLP_SOURCE;
+    delete process.env.FAKE_YTDLP_META;
+    if (existsSync(stubDir)) rmSync(stubDir, { recursive: true });
+  });
+
+  it("场景检测成功：按镜头抽帧，manifest 新增 shots/pacing", async () => {
+    const url = "https://www.bilibili.com/video/BVshot1";
+    const manifest = await runPrep(tripId, url, {
+      maxFrames: 3,
+      binaries: { ytDlp: fakeYtDlp, ffmpeg: "ffmpeg", ffprobe: "ffprobe" },
+      // 注入一刀（5s）——比真跑场景检测更确定，专测 runPrep 的接线
+      detectSceneChanges: async () => [5],
+    });
+
+    expect(manifest.frames).toHaveLength(3); // 帧数仍受 maxFrames 约束
+    expect(manifest.shots).toHaveLength(2);
+    expect(manifest.shots?.[0]).toEqual({ start: 0, end: 5 });
+    expect(manifest.shots?.[1].start).toBe(5);
+    expect(manifest.shots?.[1].end).toBeCloseTo(manifest.duration as number, 3);
+    expect(manifest.pacing?.shot_count).toBe(2);
+    expect(manifest.pacing?.pacing_style).toBe("medium"); // ~10s / 1 刀 ≈ 6 刀/分钟
+    // 帧文件确实落盘（每镜至少 1 帧由 timestampsPerShot 保证，此处验产物完整）
+    for (const frame of manifest.frames) {
+      expect(existsSync(path.join(testPilotHome, "workspace", tripId, "raw", `video-${sha1Hex(url)}`, frame))).toBe(true);
+    }
+
+    // frame_times 与 frames 一一对应，且每帧都落在某个镜头区间内。
+    // 没有它，子代理只看到 frame-007.jpg 却不知道它在片子的哪一秒，
+    // 「按镜头取帧」给出的锚点时间轴就是断的。
+    expect(manifest.frame_times).toHaveLength(manifest.frames.length);
+    const times = manifest.frame_times as number[];
+    expect([...times].sort((a, b) => a - b)).toEqual(times); // 升序
+    for (const t of times) {
+      expect(manifest.shots?.some((shot) => t >= shot.start && t <= shot.end)).toBe(true);
+    }
+
+    const onDisk = readJson<Manifest>(tripId, `raw/video-${sha1Hex(url)}/manifest.json`);
+    expect(onDisk).toEqual(manifest);
+    expect(onDisk.shots).toHaveLength(2);
+    expect(onDisk.pacing?.shot_count).toBe(2);
+  }, 30000);
+
+  it("场景检测失败（注入抛错）→ 打一行 stderr 后回退均匀抽帧，manifest 不含 shots/pacing", async () => {
+    const url = "https://www.bilibili.com/video/BVshot2";
+    const writeSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    let manifest: Manifest;
+    let stderrText: string;
+    try {
+      manifest = await runPrep(tripId, url, {
+        maxFrames: 3,
+        binaries: { ytDlp: fakeYtDlp, ffmpeg: "ffmpeg", ffprobe: "ffprobe" },
+        detectSceneChanges: async () => {
+          throw new Error("模拟场景检测失败（无 select 滤镜）");
+        },
+      });
+    } finally {
+      // 必须在 mockRestore 之前读取调用记录（restore 会清空 mock 状态）
+      stderrText = writeSpy.mock.calls.map((call) => String(call[0])).join("");
+      writeSpy.mockRestore();
+    }
+
+    // 视频环节照常成功，帧数与均匀抽帧一致
+    expect(manifest.frames).toEqual(["frame-001.jpg", "frame-002.jpg", "frame-003.jpg"]);
+    expect(manifest).not.toHaveProperty("shots");
+    expect(manifest).not.toHaveProperty("pacing");
+    // 降级路径同样写 frame_times（均匀抽帧的落点），保证 frames ↔ frame_times 恒定可对齐
+    expect(manifest.frame_times).toHaveLength(3);
+
+    expect(stderrText).toContain("场景检测不可用，回退均匀抽帧");
+    expect(stderrText).toContain("模拟场景检测失败");
+
+    // 落盘 manifest 保持「无切镜字段」的旧形状，只多出 frame_times
+    const videoDir = path.join(testPilotHome, "workspace", tripId, "raw", `video-${sha1Hex(url)}`);
+    const onDisk = JSON.parse(readFileSync(path.join(videoDir, "manifest.json"), "utf-8")) as Manifest;
+    expect(Object.keys(onDisk).sort()).toEqual([
+      "description",
+      "duration",
+      "frame_times",
+      "frames",
+      "title",
+      "url",
+    ]);
+    expect(onDisk).toEqual(manifest);
+  }, 30000);
 });
 
 // ---------------------------------------------------------------------------
