@@ -30,7 +30,10 @@ describe("workspace", () => {
     const tripPath = createTrip("test-trip");
 
     // Check that path matches format: workspace/<slug>-<yyyymmdd>
-    expect(tripPath).toMatch(/workspace\/test-trip-\d{8}$/);
+    // 用 basename/dirname 断言而非整串正则：createTrip 返回的是 OS 原生路径，
+    // Windows 下 path.join 产出反斜杠，写死 "/" 的正在 win32 上必然失败。
+    expect(path.basename(tripPath)).toMatch(/^test-trip-\d{8}$/);
+    expect(path.basename(path.dirname(tripPath))).toBe("workspace");
     expect(existsSync(tripPath)).toBe(true);
 
     // Check subdirectories exist

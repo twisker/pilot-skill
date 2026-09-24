@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { planSpawn } from "./video-deps";
 
 const execFileAsync = promisify(execFile);
 
@@ -30,16 +31,20 @@ export function computeFrameTimestamps(duration: number, count: number): number[
  */
 export async function probeDuration(videoPath: string, ffprobeBin = "ffprobe"): Promise<number> {
   let stdout: string;
+  // win32 下 .cmd/.bat 需经 cmd.exe 包装才能执行（见 video-deps.planSpawn）
+  const plan = planSpawn(ffprobeBin, [
+    "-v",
+    "error",
+    "-show_entries",
+    "format=duration",
+    "-of",
+    "default=noprint_wrappers=1:nokey=1",
+    videoPath,
+  ]);
   try {
-    ({ stdout } = await execFileAsync(ffprobeBin, [
-      "-v",
-      "error",
-      "-show_entries",
-      "format=duration",
-      "-of",
-      "default=noprint_wrappers=1:nokey=1",
-      videoPath,
-    ]));
+    ({ stdout } = await execFileAsync(plan.file, plan.args, {
+      windowsVerbatimArguments: plan.windowsVerbatimArguments,
+    }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(`ffprobe 探测时长失败: ${message}`);
@@ -78,7 +83,7 @@ export async function extractFrames(
     const frameName = frameFileName(i);
     const framePath = path.join(outDir, frameName);
     try {
-      await execFileAsync(ffmpegBin, [
+      const plan = planSpawn(ffmpegBin, [
         "-ss",
         String(timestamps[i]),
         "-i",
@@ -90,6 +95,9 @@ export async function extractFrames(
         "-y",
         framePath,
       ]);
+      await execFileAsync(plan.file, plan.args, {
+        windowsVerbatimArguments: plan.windowsVerbatimArguments,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(`ffmpeg 抽帧失败（第 ${i + 1} 帧，t=${timestamps[i]}s）: ${message}`);

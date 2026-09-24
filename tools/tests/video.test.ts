@@ -356,8 +356,11 @@ describe.skipIf(!HAS_FFMPEG)("video.ts: checkBinary + defaultBinaries 绝对路�
 // ---------------------------------------------------------------------------
 
 // Windows 无 shebang 支持，直接执行无扩展名文件会失败；改写一个 .js + .cmd
-// 包装（.cmd 由 Node child_process 特殊处理，无需 shell:true 也能跑），
-// PATH 目录下 PATHEXT 解析裸命令名"yt-dlp"时也能命中 yt-dlp.cmd。
+// 包装，PATH 目录下 PATHEXT 解析裸命令名"yt-dlp"时也能命中 yt-dlp.cmd。
+// 注意：Node 自 CVE-2024-27980 起禁止无 shell 直接执行 .cmd/.bat（execFile
+// 直接抛 EINVAL），所以让本 fixture 真能跑起来的是产品侧的 video-deps.planSpawn
+// ——它把 .cmd/.bat 包装成 `cmd.exe /d /s /c` 调用。本组用例因此也顺带覆盖了
+// 那条 Windows 路径（此前误以为 Node 会「特殊处理」.cmd，实际不会，CI 因此长期红）。
 // darwin/linux 保持原有 shebang + chmod +x 方案不变。
 // 注：本仓库开发机为 macOS，win32 分支未在真实 Windows 上跑过，随 CI windows-latest
 // job（.github/workflows/ci.yml）验证。

@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdir, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { execFile, execFileSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -8,7 +8,7 @@ import { tripDir, writeJson } from "./lib/workspace";
 import { cookieFilePath } from "./lib/sites/cookies";
 import { probeDuration, extractFrames } from "./lib/video-frames";
 import { storageStateToNetscape, type StorageState } from "./lib/cookie-convert";
-import { resolveDefaultBinaries, type VideoBinaries } from "./lib/video-deps";
+import { resolveDefaultBinaries, planSpawn, type VideoBinaries } from "./lib/video-deps";
 import { reportProgress, truncateForLog } from "./lib/progress";
 
 const execFileAsync = promisify(execFile);
@@ -67,18 +67,22 @@ const VERSION_FLAG: Record<string, string> = { ffmpeg: "-version", ffprobe: "-ve
 
 export function checkBinary(bin: string): boolean {
   // bin 可能是裸命令名（"ffmpeg"）也可能是 defaultBinaries() 解析出的绝对路径
-  // （如 ~/.pilot/bin/ffmpeg 或 Windows 下 .../ffmpeg.exe）。VERSION_FLAG 只按
-  // 二进制的「基础名」登记，因此必须先剥离目录与 .exe 后缀再查表——否则绝对
-  // 路径每次都查表 miss，fallback 到 "--version"，而 ffmpeg/ffprobe 只认单横线
-  // "-version"（非零退出），会把刚装好的依赖误判为缺失（Task 21 review 修复）。
-  const name = path.basename(bin).replace(/\.exe$/i, "");
+  // （如 ~/.pilot/bin/ffmpeg、Windows 下 .../ffmpeg.exe、或 PATH 上的 .cmd shim）。
+  // VERSION_FLAG 只按二进制的「基础名」登记，因此必须先剥离目录与平台后缀再查表
+  // ——否则绝对路径每次都查表 miss，fallback 到 "--version"，而 ffmpeg/ffprobe
+  // 只认单横线 "-version"（非零退出），会把刚装好的依赖误判为缺失
+  // （Task 21 review 修复；.cmd/.bat 后缀同理需剥离）。
+  const name = path.basename(bin).replace(/\.(exe|cmd|bat)$/i, "");
   const flag = VERSION_FLAG[name] ?? "--version";
-  try {
-    execFileSync(bin, [flag], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
+  // win32 下 .cmd/.bat 需经 cmd.exe 包装才能执行（见 planSpawn）。
+  // 用 spawnSync 而非 execFileSync：windowsVerbatimArguments 只声明在
+  // spawn/execFile 的选项类型上，execFileSync 的 ExecFileSyncOptions 没有它。
+  const plan = planSpawn(bin, [flag]);
+  const result = spawnSync(plan.file, plan.args, {
+    stdio: "ignore",
+    windowsVerbatimArguments: plan.windowsVerbatimArguments,
+  });
+  return result.error === undefined && result.status === 0;
 }
 
 export function checkDependencies(bins: string[]): { ok: boolean; missing: string[] } {
@@ -160,10 +164,12 @@ async function ytDlpDownload(
     url,
   ];
   let stdout: string;
+  const plan = planSpawn(ytDlpBin, args);
   try {
-    ({ stdout } = await execFileAsync(ytDlpBin, args, {
+    ({ stdout } = await execFileAsync(plan.file, plan.args, {
       timeout: DOWNLOAD_TIMEOUT_MS,
       maxBuffer: YT_DLP_MAX_BUFFER,
+      windowsVerbatimArguments: plan.windowsVerbatimArguments,
     }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -175,10 +181,12 @@ async function ytDlpDownload(
 async function ytDlpMetaOnly(ytDlpBin: string, url: string, cookieArgs: string[]): Promise<YtDlpMeta> {
   const args = ["--dump-json", "--no-playlist", "--skip-download", "--quiet", "--no-warnings", ...cookieArgs, url];
   let stdout: string;
+  const plan = planSpawn(ytDlpBin, args);
   try {
-    ({ stdout } = await execFileAsync(ytDlpBin, args, {
+    ({ stdout } = await execFileAsync(plan.file, plan.args, {
       timeout: DOWNLOAD_TIMEOUT_MS,
       maxBuffer: YT_DLP_MAX_BUFFER,
+      windowsVerbatimArguments: plan.windowsVerbatimArguments,
     }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

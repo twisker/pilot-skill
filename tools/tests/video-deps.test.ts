@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import path from "node:path";
-import { getPilotHome, pilotBinDir, exeName, resolveBinaryPath, resolveDefaultBinaries } from "../lib/video-deps";
+import { getPilotHome, pilotBinDir, exeName, resolveBinaryPath, resolveDefaultBinaries, planSpawn } from "../lib/video-deps";
 
 // ---------------------------------------------------------------------------
 // lib/video-deps.ts —— 视频依赖跨平台探测（Task 21）
@@ -89,5 +89,59 @@ describe("resolveDefaultBinaries", () => {
       ffmpeg: path.join(binDir, "ffmpeg"),
       ffprobe: path.join(binDir, "ffprobe"),
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// planSpawn —— Windows .cmd/.bat 执行包装
+//
+// 背景：Node 自 CVE-2024-27980 起禁止无 shell 直接执行 .cmd/.bat
+// （execFile/execFileSync 抛 EINVAL），而 PATH 上的 yt-dlp/ffmpeg 可能是
+// npm/pipx/scoop 风格的 .cmd shim。planSpawn 是纯函数，win32 分支可在
+// 任意开发机上断言，无需真实 Windows。
+// ---------------------------------------------------------------------------
+
+describe("planSpawn", () => {
+  it("非 win32 原样透传，不引入 shell", () => {
+    const plan = planSpawn("yt-dlp", ["--version"], { platform: "darwin" });
+    expect(plan).toEqual({ file: "yt-dlp", args: ["--version"] });
+    expect(plan.windowsVerbatimArguments).toBeUndefined();
+  });
+
+  it("win32 但目标是 .exe 时原样透传（setup-video.ts 装的就是 .exe，生产主路径）", () => {
+    const bin = "C:\\Users\\me\\.pilot\\bin\\yt-dlp.exe";
+    const plan = planSpawn(bin, ["--version"], { platform: "win32" });
+    expect(plan).toEqual({ file: bin, args: ["--version"] });
+  });
+
+  it("win32 + .cmd 包装成 cmd.exe /d /s /c，逐参数加引号（后缀大小写不敏感）", () => {
+    const bin = "C:\\tools\\yt-dlp.CMD";
+    const plan = planSpawn(bin, ["--version"], {
+      platform: "win32",
+      comspec: "C:\\Windows\\system32\\cmd.exe",
+    });
+    expect(plan.file).toBe("C:\\Windows\\system32\\cmd.exe");
+    expect(plan.args).toEqual(["/d", "/s", "/c", `""${bin}" "--version""`]);
+    expect(plan.windowsVerbatimArguments).toBe(true);
+  });
+
+  it("win32 + .bat 同样包装", () => {
+    const plan = planSpawn("run.bat", ["a"], { platform: "win32", comspec: "cmd.exe" });
+    expect(plan.file).toBe("cmd.exe");
+    expect(plan.args).toEqual(["/d", "/s", "/c", `""run.bat" "a""`]);
+  });
+
+  it("含 & 的 URL 被引号包裹，cmd 不会把 & 当作命令分隔符", () => {
+    const url = "https://example.com/v?p=1&t=2";
+    const plan = planSpawn("yt-dlp.cmd", ["-o", "out.mp4", url], {
+      platform: "win32",
+      comspec: "cmd.exe",
+    });
+    expect(plan.args[3]).toBe(`""yt-dlp.cmd" "-o" "out.mp4" "${url}""`);
+  });
+
+  it("参数含双引号或换行时抛错（无法安全表达，不静默构造错误命令）", () => {
+    expect(() => planSpawn("yt-dlp.cmd", ['a"b'], { platform: "win32" })).toThrow(/cmd\.exe/);
+    expect(() => planSpawn("yt-dlp.cmd", ["a\nb"], { platform: "win32" })).toThrow(/cmd\.exe/);
   });
 });
