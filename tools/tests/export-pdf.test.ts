@@ -36,7 +36,6 @@ function makeItinerary(overrides: Partial<Itinerary> = {}): Itinerary {
     trip_id: tripId,
     status: "detailed",
     base_travelogue: "f10180a5bf08",
-    agency_recommendation: null,
     conflicts_checked_at: "2026-07-05T16:00:00Z",
     days: [
       {
@@ -58,8 +57,6 @@ function makeItinerary(overrides: Partial<Itinerary> = {}): Itinerary {
               type: "hotel",
               name: "乌鲁木齐大酒店",
               url: "https://example.com/hotel1",
-              affiliate_url: "https://go-cn.example.cn/r/ht-abc123?d=%E6%96%B0%E7%96%86&dt=2026-07-25",
-              alt_recommendation: null,
             },
           },
         ],
@@ -88,7 +85,7 @@ function makeItinerary(overrides: Partial<Itinerary> = {}): Itinerary {
             note: "租车公司取车",
             geo: null,
             cost_cny: null,
-            booking: { type: "car", name: "某租车公司", url: null, affiliate_url: null, alt_recommendation: null },
+            booking: { type: "car", name: "某租车公司", url: null },
           },
         ],
       },
@@ -175,8 +172,8 @@ describe("buildManualData", () => {
     // 4 住宿汇总
     expect(data.hotels.rows).toHaveLength(2);
     expect(data.hotels.subtotal).toBe(600);
-    // affiliate_url 优先：fixture 同时有 url+affiliate_url，断言渲染取 affiliate_url
-    expect(data.hotels.rows[0].bookingUrl).toBe("https://go-cn.example.cn/r/ht-abc123?d=%E6%96%B0%E7%96%86&dt=2026-07-25");
+    // 住宿汇总的预订链接取 booking.url
+    expect(data.hotels.rows[0].bookingUrl).toBe("https://example.com/hotel1");
     // 5 交通汇总
     expect(data.transport.modeLabel).toBe("自驾");
     expect(data.transport.longHaul).toHaveLength(2);
@@ -276,9 +273,9 @@ describe("renderManualHtml", () => {
     const data = buildManualData(tripId);
     const html = renderManualHtml(data);
 
-    // 验证 hotel booking URL 渲染为 <a> 标签（affiliate_url 优先于 url）
-    expect(data.hotels.rows[0].bookingUrl).toBe("https://go-cn.example.cn/r/ht-abc123?d=%E6%96%B0%E7%96%86&dt=2026-07-25");
-    expect(html).toContain("https://go-cn.example.cn/r/ht-abc123");
+    // 验证 hotel booking URL 渲染为 <a> 标签
+    expect(data.hotels.rows[0].bookingUrl).toBe("https://example.com/hotel1");
+    expect(html).toContain("https://example.com/hotel1");
   });
 
   it("travelogue URL 渲染为可点击链接", () => {
@@ -335,49 +332,6 @@ describe("renderManualHtml", () => {
     expect(appendRowCount).toBeGreaterThanOrEqual(20);
   });
 
-  it("alt_recommendation 非 null → 逐日明细渲染「替代推荐：<name>（<reason>）+链接」行", () => {
-    const itinerary = makeItinerary();
-    itinerary.days[0].items[3].booking!.alt_recommendation = {
-      name: "粉蒸牛肉馆",
-      reason: "泡馍名气大但排队久，带老人小孩更适合粉蒸牛肉",
-      url: "https://example.com/fenzheng",
-      affiliate_url: null,
-    };
-    setupFixtureTrip({}, { days: itinerary.days });
-    const data = buildManualData(tripId);
-    // 数据层：alt 字段就位，链接口径 affiliate_url ?? url
-    expect(data.dailyDetails[0].items[3].alt).toEqual({
-      name: "粉蒸牛肉馆",
-      reason: "泡馍名气大但排队久，带老人小孩更适合粉蒸牛肉",
-      url: "https://example.com/fenzheng",
-    });
-
-    const html = renderManualHtml(data);
-    expect(html).toContain("替代推荐：粉蒸牛肉馆（泡馍名气大但排队久，带老人小孩更适合粉蒸牛肉）");
-    expect(html).toContain('<a href="https://example.com/fenzheng">');
-  });
-
-  it("alt_recommendation.affiliate_url 存在时替代链接优先用短链（⑧ 口径）", () => {
-    const itinerary = makeItinerary();
-    itinerary.days[0].items[3].booking!.alt_recommendation = {
-      name: "粉蒸牛肉馆",
-      reason: "排队久",
-      url: "https://example.com/fenzheng",
-      affiliate_url: "https://go-cn.example.cn/r/alt-rs-abc1234567?d=x&dt=2026-07-25",
-    };
-    itinerary.days[0].items[3].booking!.affiliate_url =
-      "https://go-cn.example.cn/r/ht-abc1234567?d=x&dt=2026-07-25";
-    setupFixtureTrip({}, { days: itinerary.days });
-    const data = buildManualData(tripId);
-    expect(data.dailyDetails[0].items[3].alt?.url).toBe(
-      "https://go-cn.example.cn/r/alt-rs-abc1234567?d=x&dt=2026-07-25"
-    );
-    // 计划内 booking 链接同口径：affiliate_url 优先替代裸链接
-    expect(data.dailyDetails[0].items[3].bookingUrl).toBe(
-      "https://go-cn.example.cn/r/ht-abc1234567?d=x&dt=2026-07-25"
-    );
-  });
-
   it("危险 scheme（javascript:）URL 不被渲染为链接", () => {
     setupFixtureTrip(
       {},
@@ -399,8 +353,6 @@ describe("renderManualHtml", () => {
                   type: "hotel",
                   name: "恶意",
                   url: "javascript:alert('xss')",
-                  affiliate_url: null,
-                  alt_recommendation: null,
                 },
               },
             ],

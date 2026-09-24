@@ -360,7 +360,7 @@ Read `travelogues/index.json`，向用户展示 5 条：每条「标题式一句
    - 用户可从展示的 5 条中改选，改选时同样提示所选条目的 `days_count`；改选 `days_count < 2` 的条目需再次确认用户知情。
    用 0.5 节命令**只读蓝本的 `route`**。
 2. 结合 intake（起止日期/天数/人群/交通/预算）裁剪生成 `itinerary.json`（Write 落盘），严格按 `shared/schema/itinerary.schema.json`：
-   - `status: "draft"`、`base_travelogue: "<蓝本id>"`、`agency_recommendation: null`
+   - `status: "draft"`、`base_travelogue: "<蓝本id>"`
    - 每天 `{day, date, source_ref: {travelogue_id, day}, items}`；date 从 intake.dates.start 顺推
    - item：`{time, kind, name, note, geo: null, cost_cny: null, booking: null}`——**此阶段 geo 一律 null**（坐标只能在 ⑥ 查证后填）
 3. **每次写 itinerary.json 后 MUST 立即校验，通过才能继续**：
@@ -391,7 +391,7 @@ Read `travelogues/index.json`，向用户展示 5 条：每条「标题式一句
 
 - 每天补齐：住宿（kind=hotel）、当日交通（kind=transit，note 写路段与预计时长）、三餐中值得安排的（kind=meal）、门票/花费（`cost_cny`，参考游记正文提到的价格，拿不准就 WebSearch 核价）。
 - 尽量贴近参考游记的安排，按 intake 微调（老人→强度降档；孩子→缩短车程）。
-- `booking`：可预订条目填 `{type, name, url: <官方直链或null>, affiliate_url: null, alt_recommendation: null}`（`affiliate_url` / `alt_recommendation` 为 schema 预留字段，恒为 null）；查不到可靠直链就整个 booking 填 null，**不编 URL**。
+- `booking`：可预订条目填 `{type, name, url: <官方直链或null>}`；查不到可靠直链就整个 booking 填 null，**不编 URL**。
 
 ### 6.2 geo 坐标（MUST 查证，禁止凭记忆）
 

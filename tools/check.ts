@@ -62,7 +62,6 @@ export interface Itinerary {
   status: string;
   base_travelogue: string;
   days: ItineraryDay[];
-  agency_recommendation: unknown;
   conflicts_checked_at: string | null;
 }
 

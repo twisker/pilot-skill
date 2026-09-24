@@ -162,7 +162,7 @@ describe("itinerary.schema.json", () => {
     validate = compile("itinerary.schema.json");
   });
 
-  it("接受合法 itinerary fixture（agency_recommendation 恒 null）", () => {
+  it("接受合法 itinerary fixture", () => {
     const valid = {
       trip_id: "xinjiang-20260726",
       status: "draft",
@@ -184,128 +184,14 @@ describe("itinerary.schema.json", () => {
                 type: "ticket",
                 name: "天池门票",
                 url: "https://example.com/ticket",
-                affiliate_url: null,
-                alt_recommendation: null,
               },
             },
           ],
         },
       ],
-      agency_recommendation: null,
       conflicts_checked_at: null,
     };
     expect(validate(valid)).toBe(true);
-  });
-
-  it("接受 alt_recommendation 为完整对象的 itinerary fixture（2026-07-05 解冻）", () => {
-    const valid = {
-      trip_id: "xinjiang-20260726",
-      status: "detailed",
-      base_travelogue: "a1b2c3d4e5f6",
-      days: [
-        {
-          day: 2,
-          date: "2026-07-27",
-          source_ref: null,
-          items: [
-            {
-              time: "12:00",
-              kind: "meal",
-              name: "羊肉泡馍老店",
-              note: "回民街人气店",
-              geo: null,
-              cost_cny: 45,
-              booking: {
-                type: "restaurant",
-                name: "羊肉泡馍老店",
-                url: "https://example.com/paomo",
-                affiliate_url: null,
-                alt_recommendation: {
-                  name: "粉蒸牛肉馆",
-                  reason: "泡馍名气大但排队久，带老人小孩更适合粉蒸牛肉",
-                  url: "https://example.com/fenzheng",
-                  affiliate_url: null,
-                },
-              },
-            },
-          ],
-        },
-      ],
-      agency_recommendation: null,
-      conflicts_checked_at: null,
-    };
-    expect(validate(valid)).toBe(true);
-  });
-
-  it("拒绝缺少 reason 的 alt_recommendation（额外推荐必须带理由）", () => {
-    const invalid = {
-      trip_id: "xinjiang-20260726",
-      status: "detailed",
-      base_travelogue: "a1b2c3d4e5f6",
-      days: [
-        {
-          day: 2,
-          date: "2026-07-27",
-          items: [
-            {
-              kind: "meal",
-              name: "羊肉泡馍老店",
-              note: "",
-              booking: {
-                type: "restaurant",
-                name: "羊肉泡馍老店",
-                affiliate_url: null,
-                alt_recommendation: {
-                  // reason 缺失
-                  name: "粉蒸牛肉馆",
-                  url: null,
-                  affiliate_url: null,
-                },
-              },
-            },
-          ],
-        },
-      ],
-      agency_recommendation: null,
-    };
-    expect(validate(invalid)).toBe(false);
-    expect(validate.errors?.some((e) => e.params?.missingProperty === "reason")).toBe(true);
-  });
-
-  it("拒绝 alt_recommendation 携带白名单外字段（additionalProperties: false）", () => {
-    const invalid = {
-      trip_id: "xinjiang-20260726",
-      status: "detailed",
-      base_travelogue: "a1b2c3d4e5f6",
-      days: [
-        {
-          day: 2,
-          date: "2026-07-27",
-          items: [
-            {
-              kind: "meal",
-              name: "羊肉泡馍老店",
-              note: "",
-              booking: {
-                type: "restaurant",
-                name: "羊肉泡馍老店",
-                affiliate_url: null,
-                alt_recommendation: {
-                  name: "粉蒸牛肉馆",
-                  reason: "排队久",
-                  url: null,
-                  affiliate_url: null,
-                  price_cny: 68, // 白名单外字段
-                },
-              },
-            },
-          ],
-        },
-      ],
-      agency_recommendation: null,
-    };
-    expect(validate(invalid)).toBe(false);
-    expect(validate.errors?.some((e) => e.keyword === "additionalProperties")).toBe(true);
   });
 
   it("拒绝缺少 status 的 itinerary fixture", () => {
@@ -314,7 +200,6 @@ describe("itinerary.schema.json", () => {
       // status 缺失
       base_travelogue: "a1b2c3d4e5f6",
       days: [],
-      agency_recommendation: null,
       conflicts_checked_at: null,
     };
     expect(validate(invalid)).toBe(false);

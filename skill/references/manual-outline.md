@@ -61,7 +61,7 @@
 - 名称与备注：`items[].name`、`items[].note`
 - 坐标：`items[].geo`（null 不显示；有值时 PDF 可附小地图/坐标文本）
 - 费用：`items[].cost_cny`（null 显示「—」）
-- 预订入口：`items[].booking`（V1 只渲染 `booking.name` + `booking.url` 普通直链；`affiliate_url` / `alt_recommendation` V1 恒 null，不渲染）
+- 预订入口：`items[].booking`（渲染 `booking.name` + `booking.url` 普通直链；无直链就不给链接，不编 URL）
 
 ## 4. 三、出行必备自检清单（模板）
 

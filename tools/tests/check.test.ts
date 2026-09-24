@@ -42,7 +42,6 @@ function baseItinerary(): Itinerary {
     trip_id: "xinjiang-20260726",
     status: "detailed",
     base_travelogue: "t1",
-    agency_recommendation: null,
     conflicts_checked_at: null,
     days: [
       {

@@ -49,7 +49,6 @@ function makeItinerary(overrides: Partial<Itinerary> = {}): Itinerary {
     trip_id: tripId,
     status: "detailed",
     base_travelogue: "f10180a5bf08",
-    agency_recommendation: null,
     conflicts_checked_at: "2026-07-05T16:00:00Z",
     days: [
       {
@@ -71,8 +70,6 @@ function makeItinerary(overrides: Partial<Itinerary> = {}): Itinerary {
               type: "hotel",
               name: "乌鲁木齐大酒店",
               url: "https://example.com/hotel1",
-              affiliate_url: null,
-              alt_recommendation: null,
             },
           },
         ],
@@ -101,7 +98,7 @@ function makeItinerary(overrides: Partial<Itinerary> = {}): Itinerary {
             note: "租车公司取车",
             geo: null,
             cost_cny: null,
-            booking: { type: "car", name: "某租车公司", url: null, affiliate_url: null, alt_recommendation: null },
+            booking: { type: "car", name: "某租车公司", url: null },
           },
         ],
       },
@@ -248,26 +245,6 @@ describe("runWord", () => {
     const trCount = (xml.match(/<w:tr[ >]/g) ?? []).length;
     expect(trCount).toBeGreaterThanOrEqual(60);
   });
-
-  it.skipIf(process.platform === "win32")(
-    "alt_recommendation 非 null → 逐日明细含「替代推荐：<name>（<reason>）」行",
-    async () => {
-      const itinerary = makeItinerary();
-      itinerary.days[0].items[3].booking!.alt_recommendation = {
-        name: "粉蒸牛肉馆",
-        reason: "泡馍名气大但排队久，带老人小孩更适合粉蒸牛肉",
-        url: "https://example.com/fenzheng",
-        affiliate_url: null,
-      };
-      setupFixtureTrip({}, { days: itinerary.days });
-      const result = await runWord(tripId);
-
-      const xml = extractZipEntry(result.path, "word/document.xml");
-      expect(xml).toContain("替代推荐：粉蒸牛肉馆（泡馍名气大但排队久，带老人小孩更适合粉蒸牛肉）");
-      expect(xml).toContain("https://example.com/fenzheng");
-    }
-  );
-
   it("行程状态为 draft 时报错透传（由 buildManualData 抛出）", async () => {
     setupFixtureTrip({}, { status: "draft" });
     await expect(runWord(tripId)).rejects.toThrow();

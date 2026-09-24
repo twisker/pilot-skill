@@ -2,15 +2,14 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://pilot.local/schema/itinerary",
   "title": "Itinerary",
-  "description": "用户确认/细化后的行程（v4.0 冻结契约，spec §6，cold review 增补 cost_cny / agency_recommendation）。写入 ~/.pilot/workspace/<trip>/itinerary.json。",
+  "description": "用户确认/细化后的行程（v5.0 冻结契约，spec §6；2026-09-24 经产品负责人批准删除商业化遗留字段，详见 legacy/README.md）。写入 ~/.pilot/workspace/<trip>/itinerary.json。",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "trip_id",
     "status",
     "base_travelogue",
-    "days",
-    "agency_recommendation"
+    "days"
   ],
   "properties": {
     "trip_id": { "type": "string", "minLength": 1 },
@@ -77,7 +76,7 @@
                 "booking": {
                   "type": ["object", "null"],
                   "additionalProperties": false,
-                  "required": ["type", "name", "affiliate_url", "alt_recommendation"],
+                  "required": ["type", "name"],
                   "properties": {
                     "type": {
                       "type": "string",
@@ -87,22 +86,6 @@
                     "url": {
                       "type": ["string", "null"],
                       "format": "uri"
-                    },
-                    "affiliate_url": {
-                      "type": ["string", "null"],
-                      "description": "预留字段，恒为 null（2026-09-24 转免费项目后不再写入）"
-                    },
-                    "alt_recommendation": {
-                      "type": ["object", "null"],
-                      "additionalProperties": false,
-                      "required": ["name", "reason", "url", "affiliate_url"],
-                      "properties": {
-                        "name": { "type": "string", "minLength": 1 },
-                        "reason": { "type": "string", "minLength": 1 },
-                        "url": { "type": ["string", "null"], "format": "uri" },
-                        "affiliate_url": { "type": ["string", "null"] }
-                      },
-                      "description": "预留字段，恒为 null（原用于 item 级额外产品推荐，2026-09-24 转免费项目后停用）"
                     }
                   }
                 }
@@ -111,18 +94,6 @@
           }
         }
       }
-    },
-    "agency_recommendation": {
-      "type": ["null", "object"],
-      "additionalProperties": false,
-      "required": ["name", "brief", "url", "reason"],
-      "properties": {
-        "name": { "type": "string" },
-        "brief": { "type": "string" },
-        "url": { "type": "string", "format": "uri" },
-        "reason": { "type": "string" }
-      },
-      "description": "预留字段，恒为 null（原用于旅行社整包产品推荐，2026-09-24 转免费项目后停用）"
     },
     "conflicts_checked_at": {
       "type": ["string", "null"],
