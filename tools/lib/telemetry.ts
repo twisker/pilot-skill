@@ -25,9 +25,10 @@ import { atomicWriteFileSync } from "./workspace";
 //
 // 上报机制：track() 只追加本地队列（~/.pilot/telemetry-queue.jsonl），
 // flush() 才批量 POST 到计数服务 /t。endpoint 读 config/pilot.json 的
-// telemetry.endpoint —— **当前默认 null = 只落盘不上报**，计数服务部署后
-// 才改为真实 URL。离线/失败容忍：POST 失败队列原样保留；队列超 1000 条
-// 丢最旧。track/flush 永不抛异常（统计绝不能打断主流程）。
+// telemetry.endpoint —— **已于 2026-09-24 接线为真实端点**（阿里云 FC），
+// 因此会走到 flush() 的单测**必须注入假 fetch**，不能再靠「endpoint 为 null」
+// 来避免触网。离线/失败容忍：POST 失败队列原样保留；队列超 1000 条丢最旧。
+// track/flush 永不抛异常（统计绝不能打断主流程）。
 // ---------------------------------------------------------------------------
 
 export const TELEMETRY_EVENTS = ["install", "trip_created", "export"] as const;
@@ -226,8 +227,8 @@ export interface FlushResult {
 }
 
 /**
- * 批量上报队列到链接服务 /t。
- * - endpoint 为 null（当前默认）→ 不上报，队列原样保留
+ * 批量上报队列到计数服务 /t。
+ * - endpoint 为 null（未配置）→ 不上报，队列原样保留
  * - POST 失败/网络错误 → 队列原样保留（下次再试）
  * - 成功 → 清空队列
  * 永不抛异常。opts 供测试注入 endpoint/fetch。

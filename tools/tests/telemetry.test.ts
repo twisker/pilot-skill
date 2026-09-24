@@ -116,7 +116,7 @@ describe("track", () => {
 });
 
 describe("flush", () => {
-  it("endpoint 为 null（当前默认）→ 只落盘不上报，队列保留", async () => {
+  it("endpoint 为 null（显式未配置）→ 只落盘不上报，队列保留", async () => {
     track("export", { format: "pdf" });
     const before = readQueue().length;
     const result = await flush({ endpoint: null });
