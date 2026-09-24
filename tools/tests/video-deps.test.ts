@@ -143,14 +143,24 @@ describe("resolveFromPath", () => {
     ).toBeUndefined();
   });
 
-  it("posix：按 ':' 切分 PATH，不追加后缀", () => {
-    const target = "/usr/local/bin/ffmpeg";
+  it("posix：按 ':' 切分 PATH（而非 win32 的 ';'），且不追加任何后缀", () => {
+    // 断言实际探测了哪些候选路径，而不是断言某个字面量字符串——候选由 path.join
+    // 生成，Windows 下分隔符是反斜杠，写死 "/usr/local/bin/ffmpeg" 会在 win32 上
+    // 必然失败（与本文件此前 workspace.test.ts 的同类问题一致）。
+    const probed: string[] = [];
     const found = resolveFromPath("ffmpeg", {
       platform: "linux",
       env: { PATH: "/usr/bin:/usr/local/bin" },
-      exists: (p) => p === target,
+      exists: (p) => {
+        probed.push(p);
+        return false;
+      },
     });
-    expect(found).toBe(target);
+    expect(found).toBeUndefined();
+    expect(probed).toEqual([
+      path.join("/usr/bin", "ffmpeg"),
+      path.join("/usr/local/bin", "ffmpeg"),
+    ]);
   });
 });
 
