@@ -235,7 +235,8 @@ function renderTravelogueCard(t) {
     ? t.tags.map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")
     : "";
   const url = safeUrl(t.url);
-  const total = typeof t.total === "number" ? t.total.toFixed(1) : t.total != null ? t.total : "--";
+  const total =
+    typeof t.total === "number" ? t.total.toFixed(1) : t.total != null ? t.total : "--";
   return `
     <div class="travelogue-card">
       <div class="card-id">${escapeHtml(t.id)}</div>

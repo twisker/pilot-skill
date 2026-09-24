@@ -32,7 +32,8 @@
     "photo": 0.1
   },
   "preferred_domains": {
-    "you.ctrip.com": 3,
+    "you.ctrip.com": 0.3,
+    "qyer.com": 0.3,
     "tuchong.com": 2
   },
   "scrape_domains": [

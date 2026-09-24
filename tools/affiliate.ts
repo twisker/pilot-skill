@@ -46,12 +46,11 @@ const MATCH_THRESHOLD = 0.6;
 
 /**
  * products.json 验签公钥（Ed25519 raw 32 字节 base64，spec §10.6 防线 2）。
- * 占位值：正式发布前由产品负责人执行
- *   npx tsx scripts/sign-products.ts keygen --out <发布机安全目录>
- * 生成密钥对后，把输出的公钥替换到这里（私钥仅存发布机，绝不入库）。
+ * 正式发布公钥（2026-07-29 A04 生成）；私钥仅存发布机 ~/.pilot/keys/，绝不入库。
+ * 换钥流程：npx tsx scripts/sign-products.ts keygen --out <发布机安全目录> 后替换此值。
  * 测试/演练可用环境变量 PILOT_PRODUCTS_PUBKEY 覆盖。
  */
-const PRODUCTS_PUBKEY_B64 = "REPLACE_WITH_RELEASE_PUBLIC_KEY_B64";
+const PRODUCTS_PUBKEY_B64 = "bUFcNXd0TcXb/iegDp31gBhvdQxX9nR7RBjG0QWRMe4=";
 
 // ---------------------------------------------------------------------------
 // 类型
