@@ -15,10 +15,9 @@ PILOT 内置一套**匿名使用统计**，用来回答一个问题：推荐和�
 | 数据 | 说明 |
 |------|------|
 | 匿名安装标识 `install_id` | 首次运行时在本机随机生成的 UUID（存于 `~/.pilot/telemetry.json`），不含任何身份信息，不与账号、邮箱、设备指纹关联 |
-| 事件计数（白名单六种） | `install`（安装）/ `trip_created`（创建行程）/ `export`（导出路书）/ `reco_impression`（推荐曝光）/ `reco_dismissed`（推荐被拒绝）/ `booking_link_shown`（预订链接呈现，仅带短码） |
+| 事件计数（白名单**三种**） | `install`（安装）/ `trip_created`（创建行程）/ `export`（导出路书）。2026-09-24 项目转为完全免费后，原有的推荐类事件（`reco_impression` / `reco_dismissed` / `booking_link_shown`）已随商业化代码一并移除，**不再采集** |
 | 目的地粗粒度 | `trip_created` 附带目的地字符串（城市/地区级，如"新疆"）与行程天数，仅此两项 |
 | 导出格式 | `export` 附带格式名（pdf/xlsx/docx） |
-| 产品编号与匹配度分 | `reco_impression` 附带 `product_id` 与匹配度分；`reco_dismissed` 只附带 `product_id`。两者可另附 `scope`（`trip`=整行程推荐 / `item`=单个事项推荐）与 `item_ref`（行程条目定位，形如「第几天:条目名」，仅此而已，不含对话内容） |
 
 白名单在代码层强制（`tools/lib/telemetry.ts`）：白名单外的事件与字段**直接丢弃**，字符串一律截断到 200 字符——结构上排除对话内容等大块文本混入的可能。服务端（启用后）执行同一份白名单，二次过滤。
 
